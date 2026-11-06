@@ -1,20 +1,27 @@
-# Dashboard visual v0.2
+# Neon Observatory — design do dashboard
 
-Interface escura inspirada em dashboards SaaS, com quatro seções: visão geral, vendas, financeiro e RH.
+Direção visual baseada no HTML de referência **Painel Analítico Futurista** fornecido pelo autor:
+- Tema roxo escuro com acentos ciano, rosa e dourado
+- KPI cards com luz sutil e forte hierarquia visual
+- Gráficos de área, rosca, radar e barras
+- Sidebar com navegação e filtros
+- Interatividade com Plotly / Streamlit
 
-## Recursos
-- Cards de indicadores, gráficos Plotly, menu lateral e filtro anual.
-- Exportação CSV dos indicadores de vendas e financeiro.
-- Dados reais de consultas SQL ao PostgreSQL, com seed fictício.
-- Sem login: somente dados demonstrativos; não publique informações confidenciais.
+O HTML de referência trazia *candlestick e preços fictícios de mercado*. Neste projeto esses indicadores foram substituídos por métricas de verdade da operação empresarial; não simulamos cotações nem inventamos participação de canais sem dados correspondentes.
 
-## Atualização local
-```bash
-git pull origin main
-python -m streamlit run app.py
-```
+## Páginas
+- **Visão geral**: receita, lucro bruto, caixa, headcount, tendências, categorias, radar e ranking.
+- **Vendas**: KPIs de pedidos concluídos, status, produtos, categorias, clientes e CSV.
+- **Financeiro**: caixa pago, categorias de despesas, saldo acumulado, pendências e CSV.
+- **RH**: quadro atual e folha por departamento, histórico de admissões/desligamentos e exportação agregada.
+- **Power BI**: exportação CSV e instruções de conexão direta ao PostgreSQL.
 
-O filtro anual aplica-se aos indicadores de vendas e financeiro. Ranking de produtos, contas pendentes e quadro atual de RH mostram o histórico/estado atual e estão identificados na interface.
+## Regras de dados
+- Filtros relativos aos registros do dataset, não ao relógio do servidor.
+- Filtros de Vendas e Financeiro por data efetiva (pedido ou pagamento).
+- RH atual e pendências gerais são intencionalmente não filtrados por data.
+- Cache expira em até cinco minutos e há botão para recarregar.
+- Dados fictícios; aplicação sem login — não usar dados reais de pessoas.
 
-## Próximos passos
-Testes automatizados, integração com Power BI Desktop, autenticação e publicação segura.
+## Próxima versão
+Autenticação, isolamento de empresas, filtros consistentes de comparativos anuais, testes integrados com banco, DAX e arquivos Power BI reais.
