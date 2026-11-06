@@ -18,7 +18,7 @@ class FrontendSmokeTests(unittest.TestCase):
         self.assertIn('<script id="dashboard-script">', html)
         self.assertIn('<script id="dashboard-bootstrap" type="application/json">', html)
         self.assertIn('class="sidebar"', html)
-        self.assertIn('class="metric-grid"', (Path(__file__).resolve().parents[1] / "public" / "app.css").read_text())
+        self.assertIn(".metric-grid", (Path(__file__).resolve().parents[1] / "public" / "app.css").read_text())
         self.assertIn('const bundledData = embedded', html)
         self.assertNotIn('<link rel="stylesheet" href="/assets/app.css">', html)
         self.assertNotIn('<script src="/assets/app.js" defer></script>', html)
