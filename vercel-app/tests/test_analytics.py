@@ -37,7 +37,7 @@ class DashboardTests(unittest.TestCase):
 
     def test_no_private_data(self):
         self.assertNotIn("DATABASE_URL", str(self.data))
-        self.assertIn("fictícios", self.data["meta"]["disclaimer"])
+        self.assertIn("sintéticos", self.data["meta"]["disclaimer"])
 
 
 if __name__ == "__main__":
