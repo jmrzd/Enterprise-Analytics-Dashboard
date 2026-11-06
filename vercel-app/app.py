@@ -7,6 +7,7 @@ from fastapi import FastAPI, Query
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from analytics import dashboard
+from assistant_api import ChatRequest, answer_question
 
 ROOT = Path(__file__).resolve().parent
 app = FastAPI(
@@ -76,3 +77,11 @@ def get_dashboard(
     period: Literal["30d", "90d", "180d", "365d", "all"] = Query("90d")
 ):
     return JSONResponse(dashboard(period))
+
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    """Bring-your-own-key assistant; the key never persists on this server."""
+    return JSONResponse(
+        await answer_question(request),
+        headers={"Cache-Control": "no-store"},
+    )

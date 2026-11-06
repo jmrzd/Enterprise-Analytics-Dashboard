@@ -51,3 +51,29 @@ node --check templates/app.js
 - Adicionar controle de acesso por função antes de disponibilizar RH.
 - Construir o arquivo Power BI `.pbix` e publicar relatórios.
 - Adicionar testes de ponta a ponta no navegador.
+
+## Assistente de IA (OpenAI e Gemini)
+
+O dashboard inclui um assistente flutuante **✦ Assistente IA** e uma tela **Configurações IA**. O visitante escolhe um provedor e usa sua própria chave de API para perguntas livres. Estão disponíveis também respostas locais e exatas sem chave (faturamento, lucro bruto, margem, ticket médio, ranking de produtos, caixa, RH e suporte à navegação).
+
+- O navegador guarda a chave **somente na memória desta aba** até fechar/recarregar. Não usa cookies, \`localStorage\`, \`sessionStorage\` ou banco de dados.
+- Para perguntas livres, o navegador envia a chave por **HTTPS** à rota \`POST /api/chat\`. O FastAPI encaminha-a somente ao endereço fixo do provedor escolhido; a chave não aparece na URL nem é salva, retornada ou escrita em logs pelo código da aplicação.
+- **Importante:** o operador do site controla o backend e pode tecnicamente interceptar requisições. Não peça que visitantes usem chaves de alto privilégio. Recomende criar chave com gastos limitados e uso restrito, usando apenas sites confiáveis.
+- O OpenAI Responses API usa \`gpt-5.4-mini\` com \`store: false\`. O Gemini API usa \`gemini-3.5-flash-lite\` com \`x-goog-api-key\`. O acesso depende da conta do visitante, disponibilidade de modelos e possíveis cobranças.
+- Os provedores externos recebem apenas a pergunta, um trecho recente da conversa e os **indicadores sintéticos do dashboard**; não recebem dados pessoais reais nem acesso ao PostgreSQL.
+- O endpoint aceita perguntas de até 900 caracteres, histórico de no máximo seis mensagens, tempo limite de requisição, e não permite URLs de destino fornecidas pelo visitante. Erros do provedor são filtrados para não vazar credenciais.
+- Ainda não há autenticação, rate limiting distribuído ou suporte a dados empresariais reais. **Não utilize chaves de produção ou dados privados.**
+
+## Gráficos ampliados e interativos
+
+A página ganhou opção de detalhamento **automático / semanal / mensal**, visões maiores, valores exatos sob o cursor ou via teclado, e botão **⛶** para ampliar gráficos. O cálculo das séries semanais é feito no Python a partir das mesmas vendas e lançamentos que alimentam os KPIs. Todos os resultados permanecem fictícios.
+
+## Testes da integração
+
+\`\`\`bash
+cd vercel-app
+python -m unittest discover -s tests -v
+node --check templates/app.js
+\`\`\`
+
+Os testes de IA são simulados, **sem usar chaves de terceiros nem realizar cobranças reais**. É necessário fazer uma pergunta com uma chave válida para validar ao vivo o acesso do provedor escolhido.

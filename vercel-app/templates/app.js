@@ -10,7 +10,7 @@
     hr: ["Recursos Humanos", "Indicadores estratégicos de pessoas e departamentos."],
     powerbi: ["Integração Power BI", "Do PostgreSQL ao relatório executivo: a arquitetura do projeto."]
   };
-  const state = { view: "overview", period: "90d", data: null, request: 0 };
+  const state = { view: "overview", period: "90d", granularity: "auto", data: null, request: 0 };
   const embedded = $("dashboard-bootstrap");
   const bundledData = embedded ? JSON.parse(embedded.textContent) : null;
   const currency = (v) => new Intl.NumberFormat("pt-BR", {style:"currency",currency:"BRL",maximumFractionDigits:0}).format(Number(v)||0);
@@ -22,7 +22,11 @@
   const formatDate = (s) => {if(!s)return "—";const p=s.split("-");return p.length===3?p[2]+"/"+p[1]+"/"+p[0]:s;};
   const el = (tag, cls, content) => "<"+tag+(cls?' class="'+cls+'"':"")+">"+content+"</"+tag+">";
   const title = (name,subtitle,extra) => '<div class="panel-head"><div><h3 class="panel-title">'+esc(name)+'</h3><p class="panel-sub">'+esc(subtitle||"")+'</p></div>'+(extra?'<span class="panel-pill">'+esc(extra)+'</span>':"")+"</div>";
-  const panel = (name,subtitle,body,extra) => '<section class="panel">'+title(name,subtitle,extra)+body+"</section>";
+  const panel = (name,subtitle,body,extra) => {
+    const chart = body.includes('class="chart-area') || body.includes('class="donut-layout') || body.includes('class="hbar-list');
+    return '<section class="panel'+(chart?' chart-panel':'')+'">'+title(name,subtitle,extra)+(chart?'<button class="expand-btn" type="button" data-expand aria-label="Ampliar gráfico" title="Ampliar gráfico">⛶</button>':'')+body+"</section>";
+  };
+  const trendRows = (d) => (state.granularity==="weekly" || (state.granularity==="auto" && (state.period==="30d" || state.period==="90d"))) ? (d.weekly || d.months) : d.months;
   const section = (name,sub) => '<div class="section-head"><h2>'+esc(name)+'</h2>'+(sub?'<small>'+esc(sub)+'</small>':"")+"</div>";
   const note = '<div class="callout"><strong>Sobre estes dados:</strong> todos os números são fictícios e gerados em Python. Vendas, caixa e folha salarial são conjuntos independentes; saldo de caixa não representa lucro líquido.</div>';
 
@@ -37,30 +41,45 @@
 
   function lineChart(rows, series, alt) {
     if (!rows.length) return '<div class="empty-state">Nenhum dado disponível neste período.</div>';
-    const W=800,H=278,L=67,R=15,T=18,B=43;
+    const W=1000, H=420, L=85, R=28, T=28, B=55;
     const pw=W-L-R, ph=H-T-B;
-    const max=Math.max(1,...rows.flatMap(r=>series.map(s=>Number(r[s.key])||0)))*1.13;
+    const values=rows.flatMap(r=>series.map(s=>Number(r[s.key])||0));
+    const max=Math.max(1,...values)*1.15;
+    const min=Math.min(0,...values);
+    const range=Math.max(1,max-min);
     const x=(i)=>L+pw*(rows.length===1?.5:i/(rows.length-1));
-    const y=(v)=>T+ph-(Number(v)||0)/max*ph;
+    const y=(v)=>T+ph-(Number(v)-min)/range*ph;
+    const formatValue=(key,v)=>["hired","left","orders"].includes(key)?integer(v):moneyFull(v);
+    const gradientId="chart-area-"+series.map(s=>s.key).join("-");
     let svg='<svg viewBox="0 0 '+W+' '+H+'" role="img" aria-label="'+esc(alt||"Gráfico de linhas")+'">';
-    svg+='<defs><linearGradient id="lineArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#9e80ff" stop-opacity=".27"/><stop offset="100%" stop-color="#9e80ff" stop-opacity="0"/></linearGradient></defs>';
-    for(let i=0;i<5;i++){
-      const value=max*(4-i)/4, yy=T+i*ph/4;
-      svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yy+'" y2="'+yy+'" stroke="#2a3448" stroke-dasharray="4 5"/>';
-      svg+='<text x="'+(L-12)+'" y="'+(yy+4)+'" text-anchor="end" font-size="11" fill="#8290ac">'+esc(short(value))+'</text>';
+    svg+='<defs><linearGradient id="'+gradientId+'" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stop-color="#9e80ff" stop-opacity=".24"/><stop offset="100%" stop-color="#9e80ff" stop-opacity="0"/></linearGradient></defs>';
+    for(let i=0;i<6;i++){
+      const value=min+(max-min)*(5-i)/5, yy=T+i*ph/5;
+      svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+yy+'" y2="'+yy+'" stroke="#2b3550" stroke-dasharray="5 6"/>';
+      svg+='<text x="'+(L-12)+'" y="'+(yy+5)+'" text-anchor="end" font-size="13" fill="#9babca">'+esc(short(value))+'</text>';
     }
-    const step=Math.max(1,Math.ceil(rows.length/7));
-    rows.forEach((r,i)=>{if(i%step===0||i===rows.length-1)svg+='<text x="'+x(i)+'" y="'+(H-12)+'" text-anchor="middle" font-size="11" fill="#8996b0">'+esc(r.label)+'</text>';});
+    const step=Math.max(1,Math.ceil(rows.length/9));
+    rows.forEach((r,i)=>{if(i%step===0||i===rows.length-1)svg+='<text x="'+x(i)+'" y="'+(H-14)+'" text-anchor="middle" font-size="13" fill="#a9b4c9">'+esc(r.label)+'</text>';});
     series.forEach((s,idx)=>{
       const points=rows.map((r,i)=>[x(i),y(r[s.key])]);
       const d=points.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
-      if(idx===0)svg+='<path d="'+d+' L '+x(rows.length-1)+' '+(H-B)+' L '+x(0)+' '+(H-B)+' Z" fill="url(#lineArea)"/>';
-      svg+='<path d="'+d+'" fill="none" stroke="'+esc(s.color||COLORS[idx])+'" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>';
+      if(idx===0)svg+='<path d="'+d+' L '+x(rows.length-1)+' '+y(0)+' L '+x(0)+' '+y(0)+' Z" fill="url(#'+gradientId+')"/>';
+      svg+='<path d="'+d+'" fill="none" stroke="'+esc(s.color||COLORS[idx])+'" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';
       points.forEach((p,i)=>{
-        svg+='<circle cx="'+p[0]+'" cy="'+p[1]+'" r="4.3" fill="'+esc(s.color||COLORS[idx])+'" stroke="#171d2d" stroke-width="2"><title>'+esc(rows[i].label+": "+s.label+" "+moneyFull(rows[i][s.key]))+'</title></circle>';
+        svg+='<circle class="chart-point" cx="'+p[0]+'" cy="'+p[1]+'" r="5.8" fill="'+esc(s.color||COLORS[idx])+'" stroke="#151c30" stroke-width="2"><title>'+esc(rows[i].label+": "+s.label+" "+formatValue(s.key,rows[i][s.key]))+'</title></circle>';
       });
     });
-    return '<div class="chart-area">'+svg+'</svg></div>'+legend(series);
+    // Large transparent hover zones let visitors inspect each week/month easily.
+    rows.forEach((r,i)=>{
+      const half=pw/Math.max(1,rows.length-1)/2;
+      const left=i===0?L:x(i)-half;
+      const right=i===rows.length-1?W-R:x(i)+half;
+      const valueText=rows[i].label+"\n"+series.map(s=>s.label+": "+formatValue(s.key,r[s.key])).join("\n");
+      svg+='<rect class="chart-hover-band" tabindex="0" role="img" aria-label="'+esc(valueText)+'" data-tip="'+esc(valueText)+'" x="'+left.toFixed(2)+'" y="'+T+'" width="'+(right-left).toFixed(2)+'" height="'+ph+'" fill="transparent" />';
+    });
+    svg+='</svg>';
+    return '<div class="chart-area chart-area-large">'+svg+'</div>'+legend(series)+
+      '<div class="chart-hint">Passe o cursor sobre o gráfico para ver valores exatos. Use ⛶ para ampliar e o filtro GRÁFICOS para mudar o detalhamento.</div>';
   }
   function donut(items,caption,unit) {
     const total=items.reduce((a,b)=>a+(Number(b.value)||0),0);
@@ -108,7 +127,7 @@
       ])+
       section("Análise de performance","Tendências e distribuição")+
       '<div class="grid-2">'+
-        panel("Evolução de faturamento","Receita e lucro bruto por mês",lineChart(d.months,[{key:"revenue",label:"Receita",color:COLORS[0]},{key:"profit",label:"Lucro bruto",color:COLORS[1]}],"Receita e lucro bruto"),"PERÍODO")+
+        panel("Evolução de faturamento","Receita e lucro bruto por mês",lineChart(trendRows(d),[{key:"revenue",label:"Receita",color:COLORS[0]},{key:"profit",label:"Lucro bruto",color:COLORS[1]}],"Receita e lucro bruto"),"PERÍODO")+
         panel("Mix de vendas","Participação por categoria",donut(d.categories,"Receita","currency"),"CATEGORIAS")+
       '</div>'+
       section("Operação em movimento","Últimas transações e produtos")+
@@ -131,7 +150,7 @@
       ])+
       section("Performance comercial","Evolução e composição")+
       '<div class="grid-2">'+
-        panel("Receita x lucro bruto","Tendência mensal",lineChart(d.months,[{key:"revenue",label:"Receita",color:COLORS[0]},{key:"profit",label:"Lucro bruto",color:COLORS[1]}],"Receita e lucro bruto"),"MENSAL")+
+        panel("Receita x lucro bruto","Tendência mensal",lineChart(trendRows(d),[{key:"revenue",label:"Receita",color:COLORS[0]},{key:"profit",label:"Lucro bruto",color:COLORS[1]}],"Receita e lucro bruto"),"MENSAL")+
         panel("Status dos pedidos","Pedidos concluídos, pendentes e cancelados",donut(d.statuses,"Pedidos","count"),"STATUS")+
       '</div>'+
       section("Produtos e clientes","Desempenho por segmento")+
@@ -153,7 +172,7 @@
       ])+
       section("Fluxo de caixa","Comparativo mensal")+
       '<div class="grid-2">'+
-        panel("Entradas x saídas","Movimentação mensal",lineChart(d.months,[{key:"income",label:"Entradas",color:COLORS[1]},{key:"expense",label:"Saídas",color:COLORS[2]}],"Entradas e saídas"),"MENSAL")+
+        panel("Entradas x saídas","Movimentação mensal",lineChart(trendRows(d),[{key:"income",label:"Entradas",color:COLORS[1]},{key:"expense",label:"Saídas",color:COLORS[2]}],"Entradas e saídas"),"MENSAL")+
         panel("Despesas por categoria","Distribuição dos gastos",donut(d.expenseCategories,"Despesas","currency"),"DESPESAS")+
       '</div>'+
       section("Planejamento financeiro","Compromissos e categorias")+
@@ -211,6 +230,8 @@
       if(active)btn.setAttribute("aria-current","page");
       else btn.removeAttribute("aria-current");
     });
+    document.body.classList.remove("chart-is-expanded");
+    $("chartTooltip").hidden=true;
     $("dashboardContent").innerHTML=({overview,sales,finance,hr,powerbi})[view](d);
   }
   async function load() {
@@ -257,6 +278,188 @@
     $("message").innerHTML='<div class="toast">✓ CSV de demonstração exportado com sucesso.</div>';
     setTimeout(()=>$("message").replaceChildren(),3500);
   }
+
+  /* Built-in, exact BI calculations remain available without an AI API key. */
+  const ai = {provider:"openai",key:"",history:[],busy:false};
+  function aiStatus() {
+    $("aiSettingsStatus").textContent = ai.key
+      ? "✓ Chave "+(ai.provider==="openai"?"OpenAI":"Gemini")+" ativa somente nesta aba (ainda não verificada)."
+      : "Nenhuma chave conectada. Os cálculos básicos são gratuitos.";
+    $("aiConnectedLabel").textContent = ai.key
+      ? (ai.provider==="openai"?"OpenAI GPT":"Google Gemini")+" • Chave temporária"
+      : "Cálculos e suporte • OpenAI ou Gemini";
+  }
+  function openAssistant() {
+    $("assistantPanel").hidden=false;
+    $("assistantLauncher").setAttribute("aria-expanded","true");
+    $("assistantQuestion").focus();
+  }
+  function closeAssistant() {
+    $("assistantPanel").hidden=true;
+    $("assistantLauncher").setAttribute("aria-expanded","false");
+  }
+  function openSettings() {
+    $("aiSettingsOverlay").hidden=false;
+    $("aiProvider").value=ai.provider;
+    $("aiApiKey").value="";
+    aiStatus();
+    $("aiApiKey").focus();
+  }
+  function closeSettings() {
+    $("aiApiKey").value="";
+    $("aiSettingsOverlay").hidden=true;
+  }
+  function addMessage(text,role,failed) {
+    const el=document.createElement("div");
+    el.className="assistant-bubble "+(role==="user"?"assistant-bubble-user":"assistant-bubble-bot")+(failed?" error":"");
+    el.textContent=text;
+    $("assistantMessages").appendChild(el);
+    $("assistantMessages").scrollTop=$("assistantMessages").scrollHeight;
+    return el;
+  }
+  function localAnswer(question) {
+    const q=question.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+    const d=state.data;
+    if(!d)return null;
+    const k=d.kpis;
+    const when="no período selecionado ("+formatDate(d.meta.from)+" a "+formatDate(d.meta.to)+")";
+    if(/margem/.test(q))return "A margem bruta "+when+" foi de "+pct(k.margin)+".\nFórmula: (lucro bruto ÷ receita) × 100.\nEla não representa a margem líquida.";
+    if(/lucro bruto/.test(q))return "O lucro bruto "+when+" foi "+moneyFull(k.grossProfit)+".\nÉ a receita menos o custo dos produtos vendidos, sem as despesas operacionais.";
+    if(/faturamento|receita total|quanto (fatur|vend)/.test(q))return "O faturamento "+when+" foi "+moneyFull(k.revenue)+", considerando "+integer(k.orders)+" pedidos concluídos.";
+    if(/ticket medio/.test(q))return "O ticket médio "+when+" foi "+moneyFull(k.avgTicket)+".\nFórmula: faturamento ÷ pedidos concluídos.";
+    if(/saldo|fluxo de caixa/.test(q))return "O saldo de caixa "+when+" foi "+moneyFull(k.cashBalance)+". Entradas: "+moneyFull(k.income)+". Saídas: "+moneyFull(k.expenses)+".\nO caixa é independente das vendas e da folha nesta demonstração.";
+    if(/produto/.test(q)&&/mais vend|melhor|lider|top|campeao|ranking/.test(q)){
+      const byUnits=/unidade|quantidade|mais vend/.test(q);
+      const items=[...d.products].sort((a,b)=>byUnits?b.units-a.units:b.revenue-a.revenue);
+      const p=items[0];
+      return p? "O produto líder "+(byUnits?"em unidades":"em receita")+" "+when+" é "+p.name+", com "+integer(p.units)+" unidades e "+moneyFull(p.revenue)+" de receita.":"Não há produtos no período.";
+    }
+    if(/pedido/.test(q)&&!/como|status/.test(q))return "Foram concluídos "+integer(k.orders)+" pedidos "+when+".";
+    if(/colaborador|funcionario|headcount|equipe/.test(q))return "O quadro atual possui "+integer(k.headcount)+" colaboradores ativos em "+integer(k.departments)+" departamentos. É uma fotografia atual, não histórica.";
+    if(/folha salar|custo salarial/.test(q))return "A folha salarial mensal demonstrativa é "+moneyFull(k.payroll)+". Esse valor não está reconciliado com o fluxo de caixa.";
+    if(/exportar|csv|download/.test(q))return "Para exportar, clique no botão 'Exportar CSV' na parte superior. O arquivo segue o módulo e período selecionados.";
+    if(/ampliar|zoom|grafico maior/.test(q))return "Clique no ícone ⛶ no canto de um gráfico para ampliá-lo. Use a opção GRÁFICOS, no topo, para mudar entre séries semanais e mensais.";
+    return null;
+  }
+  async function sendQuestion(text) {
+    const question=String(text||"").trim();
+    if(!question||ai.busy)return;
+    addMessage(question,"user");
+    $("assistantQuestion").value="";
+    const local=localAnswer(question);
+    if(local){
+      addMessage(local,"assistant");
+      ai.history.push({role:"user",content:question},{role:"assistant",content:local});
+      ai.history=ai.history.slice(-6);
+      return;
+    }
+    if(!ai.key){
+      addMessage("Para responder perguntas livres, abra ⚙ Configurações IA e conecte uma chave OpenAI ou Gemini. Perguntas diretas sobre faturamento, margem, produtos e cálculos básicos já funcionam sem chave.","assistant");
+      return;
+    }
+    const previous=ai.history.slice(-6);
+    ai.busy=true;
+    $("assistantSend").disabled=true;
+    const bubble=addMessage("✦ Consultando "+(ai.provider==="openai"?"OpenAI":"Gemini")+"...","assistant");
+    try {
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),27000);
+      let response;
+      try {
+        response=await fetch("/api/chat",{
+          method:"POST",
+          headers:{"Content-Type":"application/json","Accept":"application/json"},
+          cache:"no-store",credentials:"same-origin",signal:controller.signal,
+          body:JSON.stringify({provider:ai.provider,api_key:ai.key,question,period:state.period,history:previous})
+        });
+      } finally {clearTimeout(timeout);}
+      const output=await response.json();
+      if(!response.ok)throw new Error(typeof output.detail==="string"?output.detail:"Não foi possível gerar a resposta.");
+      if(typeof output.answer!=="string")throw new Error("O provedor não retornou uma resposta válida.");
+      bubble.textContent=output.answer;
+      ai.history.push({role:"user",content:question},{role:"assistant",content:output.answer.slice(0,900)});
+      ai.history=ai.history.slice(-6);
+    } catch(error) {
+      bubble.classList.add("error");
+      bubble.textContent=error.name==="AbortError"?"A consulta demorou demais. Tente novamente.":error.message;
+    } finally {
+      ai.busy=false;
+      $("assistantSend").disabled=false;
+      $("assistantMessages").scrollTop=$("assistantMessages").scrollHeight;
+      $("assistantQuestion").focus();
+    }
+  }
+  $("assistantLauncher").addEventListener("click",()=> $("assistantPanel").hidden?openAssistant():closeAssistant());
+  $("assistantClose").addEventListener("click",closeAssistant);
+  $("aiNavButton").addEventListener("click",()=>{openAssistant();closeMenu();});
+  $("aiTopButton").addEventListener("click",openAssistant);
+  $("aiConfigNav").addEventListener("click",()=>{openSettings();closeMenu();});
+  $("aiSettingsShortcut").addEventListener("click",openSettings);
+  $("aiSettingsClose").addEventListener("click",closeSettings);
+  $("aiSettingsOverlay").addEventListener("click",e=>{if(e.target===$("aiSettingsOverlay"))closeSettings();});
+  $("aiProvider").addEventListener("change",e=>{
+    if(e.target.value!==ai.provider){ai.key="";ai.history=[];}
+    ai.provider=e.target.value;
+    aiStatus();
+  });
+  $("aiSettingsForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const key=$("aiApiKey").value.trim();
+    if(key.length<12||key.length>400){$("aiSettingsStatus").textContent="Informe uma chave válida (12 a 400 caracteres).";return;}
+    ai.provider=$("aiProvider").value;
+    ai.key=key;
+    ai.history=[];
+    closeSettings();
+    aiStatus();
+    openAssistant();
+    addMessage("✓ Provedor "+(ai.provider==="openai"?"OpenAI":"Gemini")+" selecionado. A chave fica nesta aba, sem armazenamento permanente. Envie uma pergunta para verificar o acesso.","assistant");
+  });
+  $("aiClearKey").addEventListener("click",()=>{ai.key="";ai.history=[];$("aiApiKey").value="";aiStatus();});
+  $("assistantForm").addEventListener("submit",e=>{e.preventDefault();sendQuestion($("assistantQuestion").value);});
+  $("assistantQuestion").addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendQuestion(e.target.value);}});
+  document.querySelectorAll("[data-ai-question]").forEach(btn=>btn.addEventListener("click",()=>{openAssistant();sendQuestion(btn.dataset.aiQuestion);}));
+  aiStatus();
+
+  /* Chart controls: expanded view, keyboard support, exact-value hover and weekly/monthly detail. */
+  const chartTip=$("chartTooltip");
+  function hideTip(){chartTip.hidden=true;}
+  function moveTip(x,y){
+    const width=Math.min(270,chartTip.offsetWidth||180);
+    chartTip.style.left=Math.max(8,Math.min(window.innerWidth-width-8,x+15))+"px";
+    chartTip.style.top=Math.max(8,Math.min(window.innerHeight-(chartTip.offsetHeight||80)-8,y+14))+"px";
+  }
+  document.addEventListener("pointermove",e=>{
+    const item=e.target.closest&&e.target.closest("[data-tip]");
+    if(item){chartTip.textContent=item.dataset.tip;chartTip.hidden=false;moveTip(e.clientX,e.clientY);}
+    else hideTip();
+  });
+  document.addEventListener("pointerleave",hideTip);
+  document.addEventListener("focusin",e=>{
+    const item=e.target.closest&&e.target.closest("[data-tip]");
+    if(item){const rect=item.getBoundingClientRect();chartTip.textContent=item.dataset.tip;chartTip.hidden=false;moveTip(rect.left+rect.width/2,rect.top);}
+  });
+  document.addEventListener("focusout",e=>{if(e.target.closest&&e.target.closest("[data-tip]"))hideTip();});
+  function closeExpanded(){
+    document.querySelectorAll(".panel.expanded").forEach(p=>{
+      p.classList.remove("expanded");
+      const b=p.querySelector("[data-expand]");
+      if(b){b.textContent="⛶";b.setAttribute("aria-label","Ampliar gráfico");}
+    });
+    document.body.classList.remove("chart-is-expanded");
+  }
+  $("dashboardContent").addEventListener("click",e=>{
+    const b=e.target.closest&&e.target.closest("[data-expand]");
+    if(!b)return;
+    const panel=b.closest(".panel");
+    const isOpen=panel.classList.contains("expanded");
+    closeExpanded();
+    if(!isOpen){panel.classList.add("expanded");document.body.classList.add("chart-is-expanded");b.textContent="×";b.setAttribute("aria-label","Fechar ampliação");b.focus();}
+  });
+  $("granularitySelect").addEventListener("change",e=>{
+    state.granularity=e.target.value;
+    render();
+  });
+
   function closeMenu() {$("sidebar").classList.remove("open");$("mobileOverlay").hidden=true;}
   document.querySelectorAll("[data-view]").forEach(btn=>btn.addEventListener("click",()=>{
     state.view=btn.dataset.view;render();closeMenu();window.scrollTo({top:0,behavior:"smooth"});
@@ -266,7 +469,7 @@
   $("exportBtn").addEventListener("click",exportCsv);
   $("menuToggle").addEventListener("click",()=>{$("sidebar").classList.toggle("open");$("mobileOverlay").hidden=!$("sidebar").classList.contains("open");});
   $("mobileOverlay").addEventListener("click",closeMenu);
-  document.addEventListener("keydown",(e)=>{if(e.key==="Escape")closeMenu();});
+  document.addEventListener("keydown",(e)=>{if(e.key==="Escape"){closeMenu();closeSettings();closeExpanded();hideTip();}});
   $("topDate").textContent=new Intl.DateTimeFormat("pt-BR",{day:"2-digit",month:"short",year:"numeric"}).format(new Date());
   $("year").textContent=new Date().getFullYear();
   load();

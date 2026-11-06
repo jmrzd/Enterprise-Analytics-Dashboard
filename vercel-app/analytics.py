@@ -115,11 +115,17 @@ def dashboard(period="90d", today=None):
     by_client = Counter()
     by_city = Counter()
     monthly = defaultdict(lambda: {"revenue": 0, "profit": 0, "orders": 0, "income": 0, "expense": 0})
+    weekly = defaultdict(lambda: {"revenue": 0, "profit": 0, "orders": 0, "income": 0, "expense": 0})
     for sale in sales:
         month = monthly[_month_key(sale["date"])]
         month["revenue"] += sale["revenue"]
         month["profit"] += sale["profit"]
         month["orders"] += 1
+        monday = sale["date"] - timedelta(days=sale["date"].weekday())
+        week = weekly[monday]
+        week["revenue"] += sale["revenue"]
+        week["profit"] += sale["profit"]
+        week["orders"] += 1
         by_client[sale["client"]] += sale["revenue"]
         by_city[sale["city"]] += sale["revenue"]
         for item in sale["items"]:
@@ -131,6 +137,9 @@ def dashboard(period="90d", today=None):
     for entry in cash:
         month = monthly[_month_key(entry["date"])]
         month["income" if entry["kind"] == "receita" else "expense"] += entry["amount"]
+        monday = entry["date"] - timedelta(days=entry["date"].weekday())
+        week = weekly[monday]
+        week["income" if entry["kind"] == "receita" else "expense"] += entry["amount"]
         if entry["kind"] == "despesa":
             expense_categories[entry["category"]] += entry["amount"]
 
@@ -139,6 +148,12 @@ def dashboard(period="90d", today=None):
          "profit": round(v["profit"], 2), "orders": v["orders"],
          "income": round(v["income"], 2), "expense": round(v["expense"], 2)}
         for key, v in sorted(monthly.items())
+    ]
+    weeks = [
+        {"label": key.strftime("%d/%m"), "revenue": round(v["revenue"], 2),
+         "profit": round(v["profit"], 2), "orders": v["orders"],
+         "income": round(v["income"], 2), "expense": round(v["expense"], 2)}
+        for key, v in sorted(weekly.items())
     ]
     product_rows = sorted(
         [{"name": k, "units": v["units"], "revenue": v["revenue"]} for k, v in by_product.items()],
@@ -175,6 +190,7 @@ def dashboard(period="90d", today=None):
             "departments": len(dept_rows), "revenueTrend": revenue_trend,
         },
         "months": months,
+        "weekly": weeks,
         "products": product_rows[:8],
         "categories": category_rows,
         "clients": [{"name": name, "value": amount} for name, amount in by_client.most_common(6)],

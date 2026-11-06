@@ -25,6 +25,11 @@ class FrontendSmokeTests(unittest.TestCase):
         self.assertIn('class="sidebar"', html)
         self.assertIn(".metric-grid", (Path(__file__).resolve().parents[1] / "templates" / "app.css").read_text())
         self.assertIn('const bundledData = embedded', html)
+        self.assertIn('id="assistantPanel"', html)
+        self.assertIn('id="aiSettingsOverlay"', html)
+        self.assertIn('id="granularitySelect"', html)
+        self.assertIn('id="assistantLauncher"', html)
+        self.assertIn('const ai = {provider:', html)
         self.assertNotIn('<link rel="stylesheet" href="/assets/app.css">', html)
         self.assertNotIn('<script src="/assets/app.js" defer></script>', html)
 
