@@ -23,14 +23,14 @@ app = FastAPI(
 def home():
     """Deliver the entire dashboard in one HTML response.
 
-    Vercel may serve static assets outside the FastAPI routes, which left CSS
-    and JS missing in the initial deployment. Inline the trusted local assets
+    A public/index.html shadows this route on Vercel and leaves the CSS and JS
+    missing. The private templates/ folder keeps FastAPI in charge of /. Inline the trusted local assets
     and bootstrap all demo periods, so navigation never depends on /assets/*
     or an additional /api/dashboard request.
     """
-    page = (ROOT / "public" / "index.html").read_text(encoding="utf-8")
-    stylesheet = (ROOT / "public" / "app.css").read_text(encoding="utf-8")
-    javascript = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
+    page = (ROOT / "templates" / "index.html").read_text(encoding="utf-8")
+    stylesheet = (ROOT / "templates" / "app.css").read_text(encoding="utf-8")
+    javascript = (ROOT / "templates" / "app.js").read_text(encoding="utf-8")
     data = json.dumps(
         {period: dashboard(period) for period in ("30d", "90d", "180d", "365d")},
         ensure_ascii=False,
@@ -48,22 +48,22 @@ def home():
         + javascript
         + '</script></body>',
     )
-    return HTMLResponse(page, headers={"Cache-Control": "no-store"})
+    return HTMLResponse(page, headers={"Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v3"})
 
 
 @app.get("/assets/app.css", include_in_schema=False)
 def styles():
-    return FileResponse(ROOT / "public" / "app.css", media_type="text/css")
+    return FileResponse(ROOT / "templates" / "app.css", media_type="text/css")
 
 
 @app.get("/assets/app.js", include_in_schema=False)
 def scripts():
-    return FileResponse(ROOT / "public" / "app.js", media_type="application/javascript")
+    return FileResponse(ROOT / "templates" / "app.js", media_type="application/javascript")
 
 
 @app.get("/favicon.svg", include_in_schema=False)
 def favicon():
-    return FileResponse(ROOT / "public" / "favicon.svg", media_type="image/svg+xml")
+    return FileResponse(ROOT / "templates" / "favicon.svg", media_type="image/svg+xml")
 
 
 @app.get("/api/health")

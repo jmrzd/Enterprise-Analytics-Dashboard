@@ -35,14 +35,14 @@ Configure o projeto da Vercel com:
 - **Production Branch:** `main`
 - **Environment variables:** nenhuma para o modo demo.
 
-A Vercel instala `vercel-app/requirements.txt` e expõe a aplicação FastAPI em `app.py`. Não aponte a Vercel para o Streamlit da raiz.
+A Vercel instala `vercel-app/requirements.txt` e expõe a aplicação FastAPI em `app.py`. Não aponte a Vercel para o Streamlit da raiz. Os arquivos HTML/CSS/JS ficam em `templates/` (NÃO em `public/`) para evitar que a CDN sirva `index.html` sem passar pelo FastAPI. A resposta `/` inclui CSS, JavaScript e dados iniciais inline. Cabeçalho de diagnóstico: `X-Dashboard-Render: fastapi-inline-v3`.
 
 ## Testes
 
 ```bash
 cd vercel-app
 python -m unittest discover -s tests -v
-node --check public/app.js
+node --check templates/app.js
 ```
 
 ## Próximos passos

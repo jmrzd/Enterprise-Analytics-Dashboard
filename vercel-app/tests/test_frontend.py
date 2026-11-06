@@ -13,12 +13,17 @@ class FrontendSmokeTests(unittest.TestCase):
     def test_home_includes_styles_scripts_and_data(self):
         response = home()
         self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("x-dashboard-render"), "fastapi-inline-v3")
+        root = Path(__file__).resolve().parents[1]
+        self.assertFalse((root / "public" / "index.html").exists(),
+                         "Public index.html would shadow the FastAPI homepage on Vercel")
+        self.assertTrue((root / "templates" / "index.html").exists())
         html = response.body.decode("utf-8")
         self.assertIn('<style id="dashboard-style">', html)
         self.assertIn('<script id="dashboard-script">', html)
         self.assertIn('<script id="dashboard-bootstrap" type="application/json">', html)
         self.assertIn('class="sidebar"', html)
-        self.assertIn(".metric-grid", (Path(__file__).resolve().parents[1] / "public" / "app.css").read_text())
+        self.assertIn(".metric-grid", (Path(__file__).resolve().parents[1] / "templates" / "app.css").read_text())
         self.assertIn('const bundledData = embedded', html)
         self.assertNotIn('<link rel="stylesheet" href="/assets/app.css">', html)
         self.assertNotIn('<script src="/assets/app.js" defer></script>', html)
