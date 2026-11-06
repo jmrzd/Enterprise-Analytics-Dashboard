@@ -32,6 +32,6 @@ jobs:
       - name: Check Python syntax
         run: python -m compileall -q vercel-app
       - name: Check JavaScript syntax
-        run: node --check vercel-app/public/app.js
+        run: node --check vercel-app/templates/app.js
       - name: Test synthetic data engine
         run: python -m unittest discover -s vercel-app/tests -v
