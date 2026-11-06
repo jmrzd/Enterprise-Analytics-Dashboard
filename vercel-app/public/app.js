@@ -11,6 +11,8 @@
     powerbi: ["Integração Power BI", "Do PostgreSQL ao relatório executivo: a arquitetura do projeto."]
   };
   const state = { view: "overview", period: "90d", data: null, request: 0 };
+  const embedded = $("dashboard-bootstrap");
+  const bundledData = embedded ? JSON.parse(embedded.textContent) : null;
   const currency = (v) => new Intl.NumberFormat("pt-BR", {style:"currency",currency:"BRL",maximumFractionDigits:0}).format(Number(v)||0);
   const moneyFull = (v) => new Intl.NumberFormat("pt-BR", {style:"currency",currency:"BRL"}).format(Number(v)||0);
   const integer = (v) => new Intl.NumberFormat("pt-BR").format(Number(v)||0);
@@ -217,9 +219,14 @@
     $("dashboardContent").innerHTML='<div class="loading"><div class="loader"></div><p>Atualizando indicadores...</p></div>';
     $("refreshBtn").disabled=true;
     try {
-      const response=await fetch("/api/dashboard?period="+encodeURIComponent(state.period),{headers:{"Accept":"application/json"},cache:"no-store"});
-      if(!response.ok)throw new Error("HTTP "+response.status);
-      const data=await response.json();
+      let data;
+      if (bundledData && Object.prototype.hasOwnProperty.call(bundledData,state.period)) {
+        data=bundledData[state.period];
+      } else {
+        const response=await fetch("/api/dashboard?period="+encodeURIComponent(state.period),{headers:{"Accept":"application/json"},cache:"no-store"});
+        if(!response.ok)throw new Error("HTTP "+response.status);
+        data=await response.json();
+      }
       if(id!==state.request)return;
       if(!data.meta||data.meta.mode!=="demo")throw new Error("Resposta de dados inesperada");
       state.data=data;

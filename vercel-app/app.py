@@ -1,9 +1,10 @@
 """FastAPI entrypoint for Vercel. Public demo: synthetic data only."""
+import json
 from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, Query
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from analytics import dashboard
 
@@ -20,7 +21,34 @@ app = FastAPI(
 
 @app.get("/", include_in_schema=False)
 def home():
-    return FileResponse(ROOT / "public" / "index.html", media_type="text/html")
+    """Deliver the entire dashboard in one HTML response.
+
+    Vercel may serve static assets outside the FastAPI routes, which left CSS
+    and JS missing in the initial deployment. Inline the trusted local assets
+    and bootstrap all demo periods, so navigation never depends on /assets/*
+    or an additional /api/dashboard request.
+    """
+    page = (ROOT / "public" / "index.html").read_text(encoding="utf-8")
+    stylesheet = (ROOT / "public" / "app.css").read_text(encoding="utf-8")
+    javascript = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
+    data = json.dumps(
+        {period: dashboard(period) for period in ("30d", "90d", "180d", "365d")},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).replace("<", "\\u003c")
+    page = page.replace(
+        '<link rel="stylesheet" href="/assets/app.css">',
+        '<style id="dashboard-style">' + stylesheet + '</style>',
+    ).replace('<script src="/assets/app.js" defer></script>', "")
+    page = page.replace(
+        "</body>",
+        '<script id="dashboard-bootstrap" type="application/json">'
+        + data
+        + '</script><script id="dashboard-script">'
+        + javascript
+        + '</script></body>',
+    )
+    return HTMLResponse(page, headers={"Cache-Control": "no-store"})
 
 
 @app.get("/assets/app.css", include_in_schema=False)
