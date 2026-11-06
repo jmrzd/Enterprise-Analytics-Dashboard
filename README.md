@@ -2,7 +2,7 @@
 
 **Business Intelligence com PostgreSQL, Python, Pandas, Streamlit, Plotly e Power BI.**
 
-Plataforma demonstrativa de indicadores de **Vendas, Financeiro e Recursos Humanos**. Interface futurista em roxo/ciano, inspirada em painel analítico fornecido pelo autor. Os gráficos utilizam **dados consultados do PostgreSQL**, e não séries aleatórias desenhadas no frontend.
+Plataforma demonstrativa de indicadores de **Vendas, Financeiro e Recursos Humanos**. Interface futurista em roxo/ciano, inspirada em painel analítico fornecido pelo autor. O **modo local** consulta PostgreSQL via SQL/Pandas; para exibir a aplicação publicamente sem credenciais, há um **modo demo** separado, com dados sintéticos determinísticos.
 
 > **Projeto de portfólio / MVP:** todas as informações de exemplo são fictícias. Sem autenticação e sem controle de acesso por departamento; **não hospede com dados empresariais ou pessoais reais** antes de implementar segurança.
 
@@ -17,6 +17,24 @@ Plataforma demonstrativa de indicadores de **Vendas, Financeiro e Recursos Human
 | ▦ Power BI | Exportação CSV, explicação de conexão com PostgreSQL e fluxo para criação de relatórios |
 
 Os filtros permitem **30, 90, 180, 365 dias, histórico completo e intervalo personalizado**. As janelas relativas usam a **data mais recente disponível no banco**, para a demonstração continuar útil mesmo sem atualizações diárias.
+
+## Publicar uma demonstração para recrutadores
+
+A aplicação pode ser publicada no **Streamlit Community Cloud** sem PostgreSQL de produção. Nesse caso, o código gera dados **100% sintéticos, reproduzíveis e explicitamente rotulados**.
+
+1. Entre em [Streamlit Community Cloud](https://share.streamlit.io/) com GitHub e escolha o repositório `jmrzd/Enterprise-Analytics-Dashboard`, branch `main`, arquivo `app.py`.
+2. Em **Advanced settings → Secrets**, insira `DEMO_MODE = "true"`.
+3. Clique em **Deploy**, abra a URL gerada e compartilhe com recrutadores.
+
+**O link público ainda depende do deploy na sua conta Streamlit.** Veja o guia completo [docs/DEPLOY.md](docs/DEPLOY.md).
+
+Para rodar a demonstração no seu computador, sem Docker:
+
+```bash
+DEMO_MODE=true python -m streamlit run app.py
+```
+
+> O modo demo não consulta PostgreSQL. Ele serve para apresentação visual. O código SQL do projeto continua funcionando no modo local.
 
 ## Executar no computador
 
@@ -83,7 +101,9 @@ src/analytics/insights.py ──────► src/metrics.py (Pandas, KPIs, fi
 - `assets/dashboard.css`: tema futurista responsivo
 - `app.py`: interface com cinco seções
 - `scripts/` e `powerbi/`: exportação e instruções de BI
-- `tests/`: testes unitários + GitHub Actions
+- `src/demo_data.py`: gerador determinístico de dados fictícios para a vitrine pública
+- `docs/DEPLOY.md`: publicação do modo demo com segurança
+- `tests/`: testes unitários, integração e modo demo + GitHub Actions
 
 ## Verificações
 
@@ -103,4 +123,4 @@ O GitHub Actions executa testes em pushes e pull requests. É necessária uma in
 - A senha de `docker-compose.yml` é apenas para **desenvolvimento local**. Nunca a reutilize em produção.
 - Não comite `.env`, exportações contendo dados reais ou credenciais; ainda faltam login, controle de acesso, TLS e auditoria.
 
-**Próximas entregas:** dashboard Power BI `.pbix`, testes de integração SQL, autenticação empresarial e implantação pública usando somente dados sintéticos.
+**Próximas entregas:** dashboard Power BI `.pbix`, autenticação empresarial e publicação da demonstração sintética no Streamlit Community Cloud. Os testes SQL/Streamlit e de demonstração são automatizados.

@@ -16,7 +16,7 @@ jobs:
           cache: pip
       - run: python -m pip install -r requirements.txt
       - run: python -m compileall -q app.py src scripts tests
-      - run: python -m pytest -q tests/test_metrics.py tests/test_charts.py tests/test_structure.py
+      - run: python -m pytest -q tests/test_metrics.py tests/test_charts.py tests/test_structure.py tests/test_demo_data.py
 
   integration:
     name: PostgreSQL & Streamlit

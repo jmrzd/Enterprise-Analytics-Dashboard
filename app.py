@@ -1,6 +1,7 @@
 """Enterprise Analytics — Neon Observatory.
-Dashboard empresarial de demonstração, alimentado exclusivamente por PostgreSQL.
+Dashboard empresarial: PostgreSQL local ou dados sintéticos na vitrine pública.
 """
+import os
 from datetime import date
 from html import escape
 from pathlib import Path
@@ -13,11 +14,14 @@ from src.analytics.insights import (
     produtos_diarios, status_pedidos, vendas_diarias,
 )
 from src.analytics.rh import movimentacoes, quadro_funcionarios
+from src.demo_data import load_demo_data
 from src.charts import CYAN, GREEN, PINK, PURPLE, YELLOW, area, columns, donut, horizontal, radar
 from src.metrics import (
     amount, brl, cash_summary, compact_brl, filter_period,
     group_sum, monthly, pct, period_bounds,
 )
+
+DEMO_MODE = os.environ.get("DEMO_MODE", "").strip().lower() in {"1", "true", "yes", "on"}
 
 st.set_page_config(page_title="Enterprise Analytics • BI", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 st.markdown("<style>" + (Path(__file__).parent / "assets/dashboard.css").read_text(encoding="utf-8") + "</style>",
@@ -25,7 +29,9 @@ st.markdown("<style>" + (Path(__file__).parent / "assets/dashboard.css").read_te
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_data():
-    """Cache com expiração a cada 5 minutos; nenhuma senha ou dado sensível no código."""
+    """Cache expira em cinco minutos; demo não utiliza banco de dados."""
+    if DEMO_MODE:
+        return load_demo_data()
     return {
         "sales": vendas_diarias(),
         "products": produtos_diarios(),
@@ -112,11 +118,14 @@ with st.sidebar:
     st.markdown('<div class="ea-sidebar-label">FILTROS</div>', unsafe_allow_html=True)
 
 try:
-    with st.spinner("Consultando o PostgreSQL..."):
+    with st.spinner("Carregando dados sintéticos..." if DEMO_MODE else "Consultando o PostgreSQL..."): 
         data=fetch_data()
 except Exception:
-    st.error("Não foi possível acessar o PostgreSQL. Verifique o Docker e a variável DATABASE_URL no arquivo .env.")
-    st.code("docker compose up -d\npython -m streamlit run app.py",language="bash")
+    if DEMO_MODE:
+        st.error("Falha ao carregar os dados da demonstração. Verifique os testes e logs.")
+    else:
+        st.error("Não foi possível acessar o PostgreSQL. Verifique o Docker e a variável DATABASE_URL no arquivo .env.")
+        st.code("docker compose up -d\npython -m streamlit run app.py",language="bash")
     st.stop()
 
 sources=[f for k,f in data.items() if k in ("sales","cash","orders") and not f.empty]
@@ -137,13 +146,17 @@ with st.sidebar:
             st.stop()
     else:
         start,end=period_bounds(latest,preset,first)
-    if st.button("↻ Atualizar banco",width="stretch"):
+    if st.button("↻ Recarregar dados" if DEMO_MODE else "↻ Atualizar banco",width="stretch"):
         fetch_data.clear()
         st.rerun()
+    connection = (
+        "<strong>Modo demonstração</strong><br>Fonte: dados sintéticos + Pandas<br>Sem conexão com PostgreSQL"
+        if DEMO_MODE else
+        "<strong>PostgreSQL conectado</strong><br>Fonte: consultas SQL + Pandas"
+    )
     st.markdown(
-        '<div class="ea-connection"><span class="ea-dot"></span><strong>PostgreSQL conectado</strong><br>'
-        'Fonte: consultas SQL + Pandas<br>Cache: até 5 minutos<br>'
-        f'Último registro: {latest:%d/%m/%Y}</div>',
+        f'<div class="ea-connection"><span class="ea-dot"></span>{connection}<br>'
+        f'Cache: até 5 minutos<br>Último registro: {latest:%d/%m/%Y}</div>',
         unsafe_allow_html=True,
     )
     st.caption("◈ Protótipo de portfólio · dados fictícios")
@@ -181,7 +194,7 @@ if selected=="◈  Visão geral":
     with b:metric("Lucro bruto",compact_brl(gross),"◈",CYAN,f"Margem {pct(gross,revenue):.1f}%")
     with c:metric("Saldo de caixa",compact_brl(sums["saldo"]),"▥",GREEN,"Somente lançamentos pagos")
     with d:metric("Colaboradores ativos",active,"♧",PINK,"Posição atual, não histórica")
-    section("Painel de performance","Tendências de receita e fluxo de caixa",pill="POSTGRESQL → PYTHON")
+    section("Painel de performance","Tendências de receita e fluxo de caixa",pill="DADOS SINTÉTICOS → PANDAS" if DEMO_MODE else "POSTGRESQL → PYTHON")
     left,right=st.columns([1.35,1],gap="medium")
     with left:
         if not ms.empty:graph(area(ms,"mes",[("Receita","receita",PURPLE)],height=340),"overview_revenue")
@@ -315,7 +328,7 @@ elif selected=="♧  Recursos Humanos":
 
 else:
     hero("Integração", "Power BI",
-         "O mesmo PostgreSQL alimenta o dashboard web e relatórios executivos no Power BI Desktop.",
+         "No modo local, o PostgreSQL alimenta a aplicação; a vitrine pública usa dados sintéticos.",
          "Exportação disponível")
     a,b,c=st.columns(3)
     with a:metric("Fontes",3,"◈",PURPLE,"Vendas, Financeiro e RH")
