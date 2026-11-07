@@ -152,3 +152,36 @@ node --check templates/studio.js
 \`\`\`
 
 Dados do dashboard e alertas continuam 100% sintéticos. O centro de alertas não produz notificações reais e os cenários não são previsão financeira.
+
+
+## Integrações self-service (etapa de testes, sem armazenar credenciais)
+
+O menu **Integrações** do dashboard oferece um fluxo de três etapas:
+
+1. **Origem:** PostgreSQL, MySQL, CSV, Excel (.xlsx) ou conexão de demonstração.
+2. **Teste:** no exemplo fictício, resultado instantâneo sem senha; em CSV/Excel, upload de até 1,5 MB e visualização de até 12 linhas; em PostgreSQL/MySQL, teste HTTPS com senha temporária e TLS verificado, caso o administrador tenha ativado o recurso.
+3. **Mapeamento:** escolher colunas de data, valor e categoria. Para planilhas, o sistema calcula totais **somente da amostra exibida**. Para bancos remotos, lista tabelas/colunas sem copiar registros.
+
+### Ativar teste real de PostgreSQL/MySQL
+
+**Importante:** no site público, testes SQL são desabilitados por padrão para impedir acesso indevido a hosts externos/internos. O proprietário pode habilitar de forma segura em **Vercel → Project → Settings → Environment Variables**, sem modificar código:
+
+- \`INTEGRATION_ADMIN_TOKEN\`: segredo aleatório de **pelo menos 24 caracteres**, compartilhado apenas com administradores autorizados. Gere localmente: \`python -c "import secrets; print(secrets.token_urlsafe(32))"\`.
+- \`INTEGRATION_ALLOWED_HOSTS\`: lista de hostnames **exatos** aprovada pelo administrador, separados por vírgula. Exemplo: \`db1.suaempresa.com,db2.suaempresa.com\`. Não inclui portas nem URLs. Endereços privados, loopback e reservados são bloqueados.
+- Faça um **Redeploy** depois de salvar as variáveis na Vercel.
+
+O responsável informa no formulário o host aprovado, a porta (5432/3306), nome do banco, usuário **somente leitura**, senha e token do administrador. A aplicação valida primeiro a autorização e o destino, exige TLS verificado, roda somente \`SELECT 1\` e consulta o catálogo \`information_schema.columns\` (máximo de 350 entradas). O teste não executa SQL fornecido pelo usuário, nem grava credenciais ou dados.
+
+Para PostgreSQL, usa \`sslmode="verify-full"\`, que valida certificado e hostname. MySQL usa \`ssl.create_default_context()\`, verificando certificado e hostname. Bancos com certificados autoassinados exigem configuração de certificado e **não devem desabilitar a verificação TLS**.
+
+**Vercel não se conecta automaticamente a um banco local** (\`localhost\`/rede privada). Para bancos corporativos, prefira uma implantação privada, gateway seguro ou VPN/autorização de rede aprovada, com autenticação e controle por empresa. **Nunca exponha diretamente um banco interno só para testar esta demonstração pública.**
+
+### Privacidade e o que ainda não é feito
+
+- Nada de senhas, tokens ou CSV/Excel no \`localStorage\`, repositório, banco de dados ou logs da aplicação.
+- A senha é enviada apenas na requisição de teste via HTTPS e depois descartada. O operador do backend ainda controla o servidor; use apenas instalações de confiança.
+- Arquivos são processados temporariamente em memória no servidor. **Não envie planilhas com dados pessoais/confidenciais para a vitrine pública.**
+- As integrações **ainda não ficam salvas** nem alimentam automaticamente os painéis, porque isso exigiria autenticação empresarial, criptografia persistente de segredos, isolamento entre organizações, gestão de permissões e sincronização agendada.
+- Suporte a SQL Server, OAuth e um conector persistente multiempresa são evoluções futuras.
+
+**Endpoints:** \`GET /api/integrations/status\`, \`POST /api/integrations/test\` (autorizado), \`POST /api/integrations/file-preview\` (amostra de CSV/XLSX).

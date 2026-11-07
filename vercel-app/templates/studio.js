@@ -246,6 +246,7 @@ const commandItems=[
  {icon:"◈",title:"Simulador de cenários",description:"Teste preços, custos e contratações",target:"finance",tab:"simulator"},
  {icon:"♧",title:"Recursos Humanos",description:"Quadro de colaboradores",target:"hr"},
  {icon:"▤",title:"Power BI Studio",description:"Datasets e exportação CSV",target:"powerbi"},
+ {icon:"⌁",title:"Integrações",description:"Conectar PostgreSQL, MySQL, CSV e Excel",target:"integrations"},
  {icon:"↓",title:"Baixar kit Power BI",description:"Exportação ZIP de seis datasets e DAX",target:"download"},
  {icon:"✦",title:"Assistente IA",description:"Análise e perguntas sobre indicadores",target:"ai"},
  {icon:"⚙",title:"Configurações de IA",description:"Escolher OpenAI ou Gemini",target:"settings"}
@@ -277,6 +278,7 @@ function navigate(target,tab){
    window.location.href="/api/powerbi/kit?period="+encodeURIComponent(currentPeriod());
    return;
  }
+ if(target==="integrations"){$("integrationsNav")?.click();return;}
  if(target==="ai"){$("aiNavButton")?.click();return;}
  if(target==="settings"){$("aiConfigNav")?.click();return;}
  const nav=document.querySelector('button.nav-item[data-view="'+target+'"]');

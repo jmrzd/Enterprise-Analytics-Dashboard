@@ -4,10 +4,12 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import FastAPI, Query
+from fastapi import UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
 from analytics import dashboard
 from assistant_api import ChatRequest, answer_question
+from integrations import ConnectionTest, status as integration_status, test_connection, preview_file
 from features import ScenarioInput, calculate_scenario, create_powerbi_kit, export_data, get_insights, insights_for, DAX_EXAMPLES
 
 ROOT = Path(__file__).resolve().parent
@@ -37,6 +39,8 @@ def home():
     upgrade_js = (ROOT / "templates" / "upgrade.js").read_text(encoding="utf-8")
     studio_css = (ROOT / "templates" / "studio.css").read_text(encoding="utf-8")
     studio_js = (ROOT / "templates" / "studio.js").read_text(encoding="utf-8")
+    integrations_css = (ROOT / "templates" / "integrations.css").read_text(encoding="utf-8")
+    integrations_js = (ROOT / "templates" / "integrations.js").read_text(encoding="utf-8")
     bundled = {}
     for period in ("30d", "90d", "180d", "365d"):
         record = dashboard(period)
@@ -61,9 +65,13 @@ def home():
         + studio_css
         + '</style><script id="dashboard-studio-script">'
         + studio_js
+        + '</script><style id="dashboard-integrations-style">'
+        + integrations_css
+        + '</style><script id="dashboard-integrations-script">'
+        + integrations_js
         + '</script></body>',
     )
-    return HTMLResponse(page, headers={"Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v5"})
+    return HTMLResponse(page, headers={"Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v6"})
 
 
 @app.get("/assets/app.css", include_in_schema=False)
@@ -141,3 +149,22 @@ def powerbi_export(
         headers={"Content-Disposition": f'attachment; filename="{dataset}.csv"',
                  "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
+
+
+@app.get("/api/integrations/status")
+def integrations_status():
+    """Public configuration only; never expose the server allowlist or tokens."""
+    return JSONResponse(integration_status(), headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/integrations/test")
+def integrations_test(request: ConnectionTest):
+    """Authorized, one-shot TLS connection test; no credentials persisted."""
+    return JSONResponse(test_connection(request), headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/integrations/file-preview")
+async def integrations_preview(file: UploadFile = File(...)):
+    """Read a small spreadsheet into RAM for a bounded, nonpersistent preview."""
+    result = await preview_file(file)
+    return JSONResponse(result, headers={"Cache-Control": "no-store"})

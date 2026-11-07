@@ -13,7 +13,7 @@ class FrontendSmokeTests(unittest.TestCase):
     def test_home_includes_styles_scripts_and_data(self):
         response = home()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("x-dashboard-render"), "fastapi-inline-v5")
+        self.assertEqual(response.headers.get("x-dashboard-render"), "fastapi-inline-v6")
         root = Path(__file__).resolve().parents[1]
         self.assertFalse((root / "public" / "index.html").exists(),
                          "Public index.html would shadow the FastAPI homepage on Vercel")
@@ -25,6 +25,12 @@ class FrontendSmokeTests(unittest.TestCase):
         self.assertIn('<script id="dashboard-upgrade-script">', html)
         self.assertIn('<style id="dashboard-studio-style">', html)
         self.assertIn('<script id="dashboard-studio-script">', html)
+        self.assertIn('<style id="dashboard-integrations-style">', html)
+        self.assertIn('<script id="dashboard-integrations-script">', html)
+        self.assertIn("integrationDbForm", html)
+        self.assertIn("integrationFileForm", html)
+        self.assertIn("integrationsNav", html)
+        self.assertIn("INTEGRATION_ALLOWED_HOSTS", html)
         self.assertIn('v3CommandButton', html)
         self.assertIn('v3CompareButton', html)
         self.assertIn('v3-chartswitch', html)
