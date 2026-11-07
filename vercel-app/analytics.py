@@ -100,6 +100,24 @@ def dashboard(period="90d", today=None):
     today = today or date.today()
     start = today - timedelta(days=PERIOD_DAYS[period] - 1)
     sales_all, orders_all, cash_all = _events(today)
+    previous = None
+    if PERIOD_DAYS[period] <= 180:
+        n_days = PERIOD_DAYS[period]
+        previous_start = start - timedelta(days=n_days)
+        prev_sales = [s for s in sales_all if previous_start <= s["date"] < start]
+        prev_cash = [c for c in cash_all if previous_start <= c["date"] < start]
+        previous_revenue = sum(s["revenue"] for s in prev_sales)
+        previous_profit = sum(s["profit"] for s in prev_sales)
+        previous_income = sum(c["amount"] for c in prev_cash if c["kind"] == "receita")
+        previous_expenses = sum(c["amount"] for c in prev_cash if c["kind"] == "despesa")
+        previous = {
+            "from": previous_start.isoformat(),
+            "to": (start - timedelta(days=1)).isoformat(),
+            "revenue": previous_revenue,
+            "grossProfit": previous_profit,
+            "orders": len(prev_sales),
+            "cashBalance": round(previous_income - previous_expenses, 2),
+        }
     sales = [s for s in sales_all if s["date"] >= start]
     orders = [o for o in orders_all if o["date"] >= start]
     cash = [c for c in cash_all if c["date"] >= start]
@@ -189,6 +207,7 @@ def dashboard(period="90d", today=None):
             "payroll": sum(d["payroll"] for d in dept_rows),
             "departments": len(dept_rows), "revenueTrend": revenue_trend,
         },
+        "comparison": previous,
         "months": months,
         "weekly": weeks,
         "products": [{**product, "category": next((p[1] for p in PRODUCTS if p[0] == product["name"]), "Outros")} for product in product_rows],

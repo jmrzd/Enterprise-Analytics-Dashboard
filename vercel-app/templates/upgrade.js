@@ -265,6 +265,7 @@ if(document.querySelector(".v2-scenario"))updateScenario();
 }
 }
 }
+document.dispatchEvent(new CustomEvent("enterprise:rendered"));
 }
 function drill(name){
 const d=data();

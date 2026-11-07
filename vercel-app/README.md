@@ -127,3 +127,28 @@ node --check templates/upgrade.js
 \`\`\`
 
 Não forneça dados reais de clientes ou funcionários nem chaves de APIs sem restrições para a vitrine pública.
+
+
+## Enterprise Analytics — Interface 3.0 (NOVA UI)
+
+Uma camada visual e funcional adicional, sem alterar os dados nem a integração de IA:
+
+- **Nova identidade futurista:** navegação glassmorphism com iluminação suave, indicadores com pequenos sparklines reais e destaque de aba ativa.
+- **Gráficos de alta resolução:** curvas SVG suaves e dados reais do modo demo; alternância clicável entre **Linha / Área / Barras**, liga/desliga de séries, crosshair e tooltip com valores exatos. Zoom/ampliação original preservados.
+- **Comparação verificável:** botão **Comparar períodos** mostra os dados do intervalo imediatamente anterior de igual duração (30/90/180 dias). O Python calcula os eventos com datas exatas, não subtrai meses incompletos. Na visão 365 dias, a comparação fica indisponível por falta de histórico.
+- **Busca de comandos:** **Ctrl+K** abre pesquisa de módulos, produtos, clientes, cenários, Power BI e configurações IA com suporte a teclado.
+- **Centro de alertas:** ícone no topo lista alertas já calculados sobre dados sintéticos com navegação direta para o módulo.
+- **Subabas mais visíveis:** atalhos em formato de pílulas com estado ativo neon e fixação durante rolagem.
+- **Reinício de navegação:** mudar de módulo retorna ao topo, em vez de manter a posição profunda de rolagem.
+
+Os arquivos \`studio.css\` e \`studio.js\` são incorporados pelo FastAPI na resposta HTML, assim como os demais estilos e scripts. **Não** mova os arquivos para \`public/\`, pois isso pode reintroduzir a entrega de HTML sem CSS.
+
+### Testes
+
+\`\`\`bash
+cd vercel-app
+python -m unittest discover -s tests -v
+node --check templates/studio.js
+\`\`\`
+
+Dados do dashboard e alertas continuam 100% sintéticos. O centro de alertas não produz notificações reais e os cenários não são previsão financeira.

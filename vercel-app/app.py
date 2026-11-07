@@ -35,6 +35,8 @@ def home():
     javascript = (ROOT / "templates" / "app.js").read_text(encoding="utf-8")
     upgrade_css = (ROOT / "templates" / "upgrade.css").read_text(encoding="utf-8")
     upgrade_js = (ROOT / "templates" / "upgrade.js").read_text(encoding="utf-8")
+    studio_css = (ROOT / "templates" / "studio.css").read_text(encoding="utf-8")
+    studio_js = (ROOT / "templates" / "studio.js").read_text(encoding="utf-8")
     bundled = {}
     for period in ("30d", "90d", "180d", "365d"):
         record = dashboard(period)
@@ -55,9 +57,13 @@ def home():
         + upgrade_css
         + '</style><script id="dashboard-upgrade-script">'
         + upgrade_js
+        + '</script><style id="dashboard-studio-style">'
+        + studio_css
+        + '</style><script id="dashboard-studio-script">'
+        + studio_js
         + '</script></body>',
     )
-    return HTMLResponse(page, headers={"Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v4"})
+    return HTMLResponse(page, headers={"Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v5"})
 
 
 @app.get("/assets/app.css", include_in_schema=False)

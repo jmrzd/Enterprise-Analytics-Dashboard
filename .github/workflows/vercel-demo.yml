@@ -35,5 +35,7 @@ jobs:
         run: node --check vercel-app/templates/app.js
       - name: Check dashboard v2 JavaScript syntax
         run: node --check vercel-app/templates/upgrade.js
+      - name: Check futuristic command center JS syntax
+        run: node --check vercel-app/templates/studio.js
       - name: Test synthetic data engine
         run: python -m unittest discover -s vercel-app/tests -v
