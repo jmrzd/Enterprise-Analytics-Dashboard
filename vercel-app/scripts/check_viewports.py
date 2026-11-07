@@ -13,7 +13,7 @@ import argparse
 import os
 from pathlib import Path
 
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, expect
 
 CASES = [
     ("phone-small", 320, 690),
@@ -76,9 +76,7 @@ def check_mobile(page, name: str, width: int) -> None:
     ), f"{name}: sidebar did not close"
 
     page.locator("#mobileBottomNav [data-mobile-id='sales']").click()
-    page.wait_for_function(
-        "document.getElementById('pageTitle').textContent.includes('Vendas')"
-    )
+    expect(page.locator("#pageTitle")).to_contain_text("Vendas", timeout=7000)
     assert_no_horizontal_overflow(page, f"{name}-sales")
 
     # Verify the tabs can be swiped, without enlarging the whole viewport.
@@ -89,9 +87,7 @@ def check_mobile(page, name: str, width: int) -> None:
         assert_no_horizontal_overflow(page, f"{name}-performance-tab")
 
     page.locator("#mobileBottomNav [data-mobile-id='integrations']").click()
-    page.wait_for_function(
-        "() => !document.getElementById('integrationPage').hidden"
-    )
+    expect(page.locator("#integrationPage")).to_be_visible(timeout=7000)
     assert page.locator("#integrationPage").is_visible(), f"{name}: integrations hidden"
     assert_no_horizontal_overflow(page, f"{name}-integrations")
 
@@ -125,7 +121,7 @@ def check_desktop(page, name: str) -> None:
     )
     assert_no_horizontal_overflow(page, f"{name}-sales")
     page.locator('button.nav-item[data-view="powerbi"]').click()
-    page.wait_for_function("document.getElementById('v2Module').textContent.includes('Power BI')")
+    expect(page.locator("#v2Module")).to_contain_text("Power BI", timeout=7000)
     assert_no_horizontal_overflow(page, f"{name}-powerbi")
 
 

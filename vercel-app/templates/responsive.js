@@ -12,6 +12,14 @@
   const panels = [$("dashboardContent"), $("v2Module")].filter(Boolean);
   if (!sidebar || !menuToggle || !overlay) return;
 
+  // app-shell is a stacking context (z-index:1). The backdrop was a sibling
+  // of that context, making it sit ABOVE the menu despite menu z-index:120.
+  // Put backdrop and drawer in the SAME context so the close button works.
+  const appShell = document.querySelector(".app-shell");
+  if (appShell && overlay.parentElement !== appShell) {
+    appShell.insertBefore(overlay, appShell.firstChild);
+  }
+
   const bottom = document.createElement("nav");
   bottom.className = "mobile-bottom-nav";
   bottom.id = "mobileBottomNav";

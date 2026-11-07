@@ -48,6 +48,7 @@ class MobileLayoutTests(unittest.TestCase):
         self.assertIn('data-mobile-id=', self.js)
         self.assertIn('data-tip', self.js)
         self.assertIn('ea-menu-locked', self.js)
+        self.assertIn('appShell.insertBefore(overlay, appShell.firstChild)', self.js)
         self.assertIn('mobile-sidebar-close', self.js)
         self.assertIn('visualViewport', self.js)
         self.assertIn('className = "ea-mobile-svg-scroll"', self.js)
