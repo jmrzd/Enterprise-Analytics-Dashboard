@@ -13,7 +13,7 @@ class FrontendSmokeTests(unittest.TestCase):
     def test_home_includes_styles_scripts_and_data(self):
         response = home()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("x-dashboard-render"), "fastapi-inline-v3")
+        self.assertEqual(response.headers.get("x-dashboard-render"), "fastapi-inline-v4")
         root = Path(__file__).resolve().parents[1]
         self.assertFalse((root / "public" / "index.html").exists(),
                          "Public index.html would shadow the FastAPI homepage on Vercel")
@@ -21,6 +21,12 @@ class FrontendSmokeTests(unittest.TestCase):
         html = response.body.decode("utf-8")
         self.assertIn('<style id="dashboard-style">', html)
         self.assertIn('<script id="dashboard-script">', html)
+        self.assertIn('<style id="dashboard-upgrade-style">', html)
+        self.assertIn('<script id="dashboard-upgrade-script">', html)
+        self.assertIn('id="v2Module"', html)
+        self.assertIn('data-v2-tab', html)
+        self.assertIn('data-scenario', html)
+        self.assertIn('/api/powerbi/kit', html)
         self.assertIn('<script id="dashboard-bootstrap" type="application/json">', html)
         self.assertIn('class="sidebar"', html)
         self.assertIn(".metric-grid", (Path(__file__).resolve().parents[1] / "templates" / "app.css").read_text())
@@ -43,6 +49,7 @@ class FrontendSmokeTests(unittest.TestCase):
         for period, data in all_periods.items():
             self.assertEqual(data["meta"]["period"], period)
             self.assertGreater(data["kpis"]["orders"], 0)
+            self.assertTrue(data["smart"]["insights"])
 
     def test_api_remains_available(self):
         response = get_dashboard("90d")

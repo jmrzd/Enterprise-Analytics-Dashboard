@@ -77,3 +77,53 @@ node --check templates/app.js
 \`\`\`
 
 Os testes de IA são simulados, **sem usar chaves de terceiros nem realizar cobranças reais**. É necessário fazer uma pergunta com uma chave válida para validar ao vivo o acesso do provedor escolhido.
+
+
+## Enterprise Analytics 2.0 — produto interativo
+
+A versão Vercel agora inclui funcionalidades reais de exploração:
+
+- **Visão Geral:** quatro insights executivos derivados de fórmulas transparentes, alertas demonstrativos e atalhos por módulo.
+- **Vendas:** subabas Resumo, Produtos, Clientes e Performance; rankings, receitas e participação de clientes; clique em produtos/categorias para drill-down.
+- **Financeiro:** subabas Fluxo de caixa, Despesas, Pendências e Simulador, com cálculos de cenários sem modificar dados originais.
+- **RH:** subabas Equipe, Departamentos, Movimentações e Custos. A folha representa um snapshot mensal, não custo anual.
+- **Power BI Studio:** seis endpoints reais de CSV, prévia tabular, medidas DAX, guia de importação, modelo de dados ilustrativo e ZIP completo.
+- **Gráficos:** melhor escala visual, tooltips, ocultar/exibir séries clicando na legenda, opção de ampliar e explorar itens.
+- **Assistente IA:** OpenAI / Gemini com chave temporária BYOK, e respostas locais para cálculos simples sem chave.
+
+### APIs de análise e exportação
+
+- \`GET /api/insights?period=90d\`: insights, alertas e fórmulas.
+- \`POST /api/scenario\`: simulação matemática com \`price_pct\`, \`volume_pct\`, \`cost_pct\`, \`hires\`, \`expense_reduction_pct\`.
+- \`GET /api/powerbi/kit?period=90d\`: ZIP com seis CSVs, \`medidas.dax\` e instruções.
+- \`GET /api/powerbi/dax\`: biblioteca de medidas DAX.
+- \`GET /api/powerbi/{dataset}?period=90d\`: CSV de \`vendas\`, \`financeiro\`, \`rh\`, \`produtos\`, \`clientes\` ou \`categorias\`.
+- \`GET /api/dashboard?period=90d\`: dados do dashboard.
+- \`POST /api/chat\`: perguntas via API com chave de uso temporário do próprio visitante.
+
+### Como o simulador calcula
+
+**Receita de cenário = receita de referência × (1 + ajuste de preço) × (1 + ajuste de volume)**.
+
+**COGS de cenário = (receita − lucro bruto) × (1 + ajuste de custo) × (1 + ajuste de volume)**.
+
+**Lucro bruto de cenário = receita de cenário − COGS de cenário**.
+
+**Folha mensal ajustada = folha atual + contratações × custo salarial médio**.
+
+A redução de despesas é aplicada à fonte independente de lançamentos financeiros; **não é somada ao lucro bruto**. As hipóteses são simplificadas. Não é uma previsão ou aconselhamento financeiro.
+
+### Power BI — limites importantes
+
+Os seis CSVs são **agregados sintéticos**. \`vendas\` e \`financeiro\` têm coluna \`mes_inicio\` que permite criar uma dimensão calendário. \`rh\` é uma fotografia da folha atual. O projeto ainda não fornece um relatório \`.pbix\` ou conexão Power BI Service publicada. O kit é um **ponto de partida funcional para criar seu próprio relatório no Power BI Desktop**.
+
+### Verificação de qualidade
+
+\`\`\`bash
+cd vercel-app
+python -m unittest discover -s tests -v
+node --check templates/app.js
+node --check templates/upgrade.js
+\`\`\`
+
+Não forneça dados reais de clientes ou funcionários nem chaves de APIs sem restrições para a vitrine pública.

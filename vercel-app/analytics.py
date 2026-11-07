@@ -191,7 +191,7 @@ def dashboard(period="90d", today=None):
         },
         "months": months,
         "weekly": weeks,
-        "products": product_rows[:8],
+        "products": [{**product, "category": next((p[1] for p in PRODUCTS if p[0] == product["name"]), "Outros")} for product in product_rows],
         "categories": category_rows,
         "clients": [{"name": name, "value": amount} for name, amount in by_client.most_common(6)],
         "cities": [{"name": name, "value": amount} for name, amount in by_city.most_common(5)],
