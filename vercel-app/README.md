@@ -2,7 +2,7 @@
 
 Interface web futurista para portfólio, com **FastAPI (Python)**, HTML/CSS/JavaScript e visualizações SVG sem bibliotecas externas de gráficos.
 
-> **Atenção:** este deploy usa **dados 100% sintéticos**. Não há conexão com dados reais, nem login. A aplicação original Streamlit + PostgreSQL + Pandas e os scripts Power BI continuam na raiz do repositório.
+> **Atenção:** os painéis públicos usam **dados sintéticos** por padrão e ainda não existe login empresarial. A aba **Integrações** inclui um piloto opcional e autorizado para testar PostgreSQL/MySQL e consultar agregados temporários, sem salvar conexões nem substituir os dados de demonstração. A aplicação original Streamlit + PostgreSQL + Pandas e os scripts Power BI continuam na raiz do repositório.
 
 ## Executar localmente
 
@@ -35,7 +35,7 @@ Configure o projeto da Vercel com:
 - **Production Branch:** `main`
 - **Environment variables:** nenhuma para o modo demo.
 
-A Vercel instala `vercel-app/requirements.txt` e expõe a aplicação FastAPI em `app.py`. Não aponte a Vercel para o Streamlit da raiz. Os arquivos HTML/CSS/JS ficam em `templates/` (NÃO em `public/`) para evitar que a CDN sirva `index.html` sem passar pelo FastAPI. A resposta `/` inclui CSS, JavaScript e dados iniciais inline. Cabeçalho de diagnóstico: `X-Dashboard-Render: fastapi-inline-v3`.
+A Vercel instala `vercel-app/requirements.txt` e expõe a aplicação FastAPI em `app.py`. Não aponte a Vercel para o Streamlit da raiz. Os arquivos HTML/CSS/JS ficam em `templates/` (NÃO em `public/`) para evitar que a CDN sirva `index.html` sem passar pelo FastAPI. A resposta `/` inclui CSS, JavaScript e dados iniciais inline. Cabeçalho de diagnóstico: `X-Dashboard-Render: fastapi-inline-v8`.
 
 ## Testes
 
@@ -47,10 +47,10 @@ node --check templates/app.js
 
 ## Próximos passos
 
-- Implementar API autenticada e conexão segura com PostgreSQL para dados reais.
-- Adicionar controle de acesso por função antes de disponibilizar RH.
-- Construir o arquivo Power BI `.pbix` e publicar relatórios.
-- Adicionar testes de ponta a ponta no navegador.
+- Implementar **login corporativo**, controle de acesso por função e isolamento de dados por empresa antes de conectar informações confidenciais.
+- Criar armazenamento criptografado de conexões e sincronização persistente/agendada, além do piloto temporário já existente.
+- Construir um relatório Power BI `.pbix` e, se apropriado, publicar relatórios com permissões no Power BI Service.
+- Ampliar os testes de ponta a ponta já automatizados (Chromium e WebKit) com avaliações em aparelhos físicos.
 
 ## Assistente de IA (OpenAI e Gemini)
 
