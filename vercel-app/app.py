@@ -44,6 +44,8 @@ def home():
     studio_js = (ROOT / "templates" / "studio.js").read_text(encoding="utf-8")
     integrations_css = (ROOT / "templates" / "integrations.css").read_text(encoding="utf-8")
     integrations_js = (ROOT / "templates" / "integrations.js").read_text(encoding="utf-8")
+    responsive_css = (ROOT / "templates" / "responsive.css").read_text(encoding="utf-8")
+    responsive_js = (ROOT / "templates" / "responsive.js").read_text(encoding="utf-8")
     bundled = {}
     for period in ("30d", "90d", "180d", "365d"):
         record = dashboard(period)
@@ -72,6 +74,10 @@ def home():
         + integrations_css
         + '</style><script id="dashboard-integrations-script">'
         + integrations_js
+        + '</script><style id="dashboard-responsive-style">'
+        + responsive_css
+        + '</style><script id="dashboard-responsive-script">'
+        + responsive_js
         + '</script></body>',
     )
     nonce = secrets.token_urlsafe(24)
@@ -85,7 +91,7 @@ def home():
         "upgrade-insecure-requests"
     )
     return HTMLResponse(page, headers={
-        "Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v7",
+        "Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v8",
         "Content-Security-Policy": csp
     })
 

@@ -223,3 +223,26 @@ Para transformar o piloto em um SaaS corporativo é preciso login seguro, contro
 Também recomendamos habilitar limitação de requisições e proteção contra abuso no Vercel Firewall/WAF, se disponível no plano. Consulte SECURITY.md.
 
 **API:** POST /api/integrations/sync aceita uma tabela, colunas validadas e um período de 30/90/180/365 dias, exigindo autorização administrativa e host aprovado. A interface utiliza 90 dias no piloto.
+
+
+## Layout adaptativo — smartphone, iPhone, Android, tablet e desktop
+
+Esta versão mantém o visual neon futurista e adiciona dois assets finais em templates/responsive.css e templates/responsive.js, incorporados pelo FastAPI com o nonce da Content Security Policy.
+
+**Mudanças de interface:**
+
+- Mobile-first para até 960px (incluindo iPhone em modo paisagem e iPads compactos): menu lateral como gaveta com rolagem própria e bloqueio do fundo; botão de fechar acessível; navegação inferior rápida com Início, Vendas, Finanças, Integrações e Menu.
+- Suporte a área segura de dispositivos Apple: viewport-fit=cover, safe-area-inset-top/bottom/left/right e unidades de viewport dinâmicas.
+- Chatbot, menu de configurações, detalhes e busca de comandos ajustáveis à altura da viewport visual quando o teclado aparece; campos com fonte de 16px para evitar zoom automático do Safari.
+- Gráficos neon com séries que podem ser roladas horizontalmente na própria área, sem alargar a página; valores exatos por toque; controles de tipo de gráfico e subabas acessíveis ao arrastar.
+- Cards, tabelas, Power BI, cenários, formulário de integrações e ações responsivos; menos transições em dispositivos com preferência por redução de movimento.
+- A experiência continua desktop-first em telas grandes, mantendo a barra lateral e o espaço de análise.
+
+**Verificação automatizada:** o workflow Vercel Demo Quality inclui testes com Chromium e WebKit (engine usado pelo Safari) em 11 tamanhos: 320×690, 375×667, 390×844, 430×932, 932×430, 768×1024, 834×1194, 1024×768, 1280×800, 1440×900 e 1920×1080. Os testes verificam ausência de rolagem horizontal da página, navegação, subabas, fluxo demonstrativo de Integrações, visualização de chatbot e configurações e exceções JavaScript.
+
+Em ambiente local, após instalar Playwright e um navegador, inicie FastAPI na porta 8765 e execute:
+
+    python vercel-app/scripts/check_viewports.py --browser chromium
+    python vercel-app/scripts/check_viewports.py --browser webkit
+
+**Nota:** testes automatizados em Chromium/WebKit de desktop emulam tamanhos e toques; não substituem validação física de Safari no iPhone, Android e navegadores com recursos de acessibilidade variados.
