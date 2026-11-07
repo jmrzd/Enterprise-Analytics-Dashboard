@@ -149,12 +149,16 @@ def main() -> None:
                     is_mobile=width <= 960,
                     reduced_motion="reduce",
                 )
+                # External Google Fonts may be unavailable on CI runners.
+                # Test the dashboard itself without waiting on third-party CSS.
+                context.route("https://fonts.googleapis.com/**", lambda route: route.abort())
+                context.route("https://fonts.gstatic.com/**", lambda route: route.abort())
                 page = context.new_page()
                 errors = []
                 page.on("pageerror", lambda err: errors.append(str(err)))
                 try:
-                    page.goto(base, wait_until="domcontentloaded", timeout=30000)
-                    page.locator(".metric-grid .metric").first.wait_for(timeout=15000)
+                    page.goto(base, wait_until="domcontentloaded", timeout=12000)
+                    page.locator(".metric-grid .metric").first.wait_for(timeout=8000)
                     page.wait_for_timeout(120)
                     assert_no_horizontal_overflow(page, f"{name}-home")
                     if width <= 960:
@@ -163,9 +167,9 @@ def main() -> None:
                         check_desktop(page, name)
                     if errors:
                         raise AssertionError(f"{name}: JS exceptions: {errors[:3]}")
-                    print(f"✓ {args.browser}: {name} ({width}×{height})")
+                    print(f"✓ {args.browser}: {name} ({width}×{height})", flush=True)
                 except Exception as exc:
-                    print(f"✗ {args.browser}: {name} ({width}×{height}) — {exc}")
+                    print(f"✗ {args.browser}: {name} ({width}×{height}) — {exc}", flush=True)
                     failures.append(f"{name}: {exc}")
                     try:
                         page.screenshot(
