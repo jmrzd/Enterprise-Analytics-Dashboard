@@ -90,3 +90,16 @@
 .integration-time-item div span{font-size:10px;color:#8b9fbd;margin-top:5px;display:block;line-height:1.5}
 @media(max-width:1250px){.integration-layout{grid-template-columns:1fr}.integration-side{position:static}.integration-map-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:760px){.integration-hero{padding:20px;display:block}.integration-hero h2{font-size:24px}.integration-hero-badge{display:inline-block;margin-top:12px}.integration-main-card,.integration-side{padding:16px}.integration-sources,.integration-field-grid,.integration-map-grid,.integration-map-result{grid-template-columns:1fr}.integration-step{font-size:0;justify-content:center}.integration-step b{font-size:10px}.integration-field.wide{grid-column:auto}}
+
+/* Connected read-only snapshot. No personal rows or secrets appear here. */
+.integration-synced{border:1px solid #6670bb9d;border-radius:15px;padding:20px 21px;margin:16px 0;background:radial-gradient(circle at 90% -20%,#525ba659,transparent 60%),linear-gradient(140deg,#202746,#112b36);box-shadow:0 14px 40px #0002}
+.integration-synced-head{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.integration-synced-head h3{font-family:'Space Grotesk',sans-serif;font-size:20px;letter-spacing:-.035em;margin:9px 0 4px;color:#eef0ff}
+.integration-synced-head p{font-size:11px;color:#a9b9d2;margin:0}
+.integration-chart{margin:16px 0;border:1px solid #425273;background:#121c318a;border-radius:12px;padding:15px}
+.integration-chart svg{overflow:visible}
+.integration-synced h4{font-size:13px;margin:19px 0 10px}
+.integration-synced .integration-map-result>div{background:#17283e;border-color:#54688e}
+.integration-sync-button{background:linear-gradient(120deg,#4c98a0,#536bd4);border-color:#5ddfd5}
+.integration-sync-button:hover{filter:brightness(1.13)}
+@media(max-width:760px){.integration-synced{padding:15px}.integration-synced-head{align-items:flex-start;flex-direction:column}}

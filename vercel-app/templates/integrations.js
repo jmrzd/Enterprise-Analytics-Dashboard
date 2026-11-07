@@ -5,7 +5,7 @@ const $=id=>document.getElementById(id);
 const content=$("dashboardContent"),main=document.querySelector(".main-inner");
 if(!content||!main)return;
 const state={source:"demo",step:1,preview:null,tables:[],selected:null,map:null,
-             busy:false,error:"",success:"",liveEnabled:false,active:false,from:"demo"};
+             busy:false,error:"",success:"",liveEnabled:false,active:false,from:"demo",connection:null,expiresAt:0,synced:null,syncing:false,autoRefresh:false,refreshTimer:null,expiryTimer:null};
 const sourceOptions={
  demo:{name:"Explore uma conexão",detail:"Teste os passos com uma base fictícia, sem senha e sem custos.",icon:"✦"},
  postgres:{name:"PostgreSQL",detail:"Conexão segura a um servidor PostgreSQL aprovado.",icon:"◫"},
@@ -89,11 +89,11 @@ return '<h3 class="integration-heading">Conexão validada — configure o mapeam
 tableBlock+
 '<div class="integration-mapping"><strong>Campos analíticos</strong><p class="integration-help">Associe as colunas aos indicadores que pretende analisar. Esse mapeamento fica apenas aberto nesta aba.</p>'+
 '<div class="integration-map-grid">'+
-'<div class="integration-field"><label for="mapDate">Data / mês</label><select id="mapDate">'+mapOptions(columns,dateGuess)+'</select></div>'+
-'<div class="integration-field"><label for="mapValue">Valor / receita</label><select id="mapValue">'+mapOptions(columns,valueGuess)+'</select></div>'+
-'<div class="integration-field"><label for="mapCategory">Categoria / produto</label><select id="mapCategory">'+mapOptions(columns,categoryGuess)+'</select></div>'+
-'</div><div class="integration-actions"><button class="integration-primary" type="button" data-analyze>✦ Analisar amostra</button><button class="integration-outline" type="button" data-reset>Nova integração</button></div></div>'+
-'<div id="integrationAnalysis"></div>'+
+'<div class="integration-field"><label for="mapDate">Data / mês</label><select id="mapDate">'+mapOptions(columns,state.map?.date||dateGuess)+'</select></div>'+
+'<div class="integration-field"><label for="mapValue">Valor / receita</label><select id="mapValue">'+mapOptions(columns,state.map?.value||valueGuess)+'</select></div>'+
+'<div class="integration-field"><label for="mapCategory">Categoria / produto</label><select id="mapCategory">'+mapOptions(columns,state.map?.category||categoryGuess)+'</select></div>'+
+'</div><div class="integration-actions"><button class="integration-primary" type="button" data-analyze>✦ Analisar amostra</button>'+(state.from==="database"?'<button class="integration-primary" type="button" data-sync '+(state.syncing?'disabled':'')+'>↻ '+(state.syncing?'Sincronizando...':'Sincronizar totais agora')+'</button>':'')+'<button class="integration-outline" type="button" data-reset>Nova integração</button></div></div>'+
+'<div id="integrationAnalysis"></div>'+ (state.from==="database"?syncedPanel():"")+
 '<div class="integration-mapping"><strong>Prévia da estrutura '+(state.preview?.filename?": "+escape(state.preview.filename):"")+'</strong>'+
 (state.from==="database"?'<p class="integration-help">Somente metadados de colunas — o sistema não leu os registros da empresa.</p>':
 '<p class="integration-help">'+(db.rows?.length||0)+' linhas exibidas (amostra limitada). Não é o total de registros da planilha.</p>')+
@@ -123,11 +123,12 @@ const sample={
 const rows=[["2026-11-01","Tecnologia","Notebook Pro","3990.00"],["2026-11-02","Acessórios","Teclado mecânico","329.00"],
   ["2026-11-03","Tecnologia","Monitor 27","1150.00"],["2026-11-04","Móveis","Cadeira ergonômica","1250.00"]];
 state.preview={columns:sample.columns.map(x=>x.name),rows,filename:"exemplo_ficticio.csv"};
-state.tables=[];state.selected=null;state.from="demo";state.step=3;state.error="";
+state.tables=[];state.selected=null;state.from="demo";state.step=3;state.error="";state.synced=null;forgetConnection();
 state.success="Conexão simulada: 4 linhas fictícias disponíveis para explorar.";paint();
 }
 function chooseDbTable(index){
 const table=state.tables[index];if(!table)return;
+state.map=null;state.synced=null;
 state.selected=index;state.preview={columns:table.columns.map(x=>x.name),rows:[],filename:table.schema+"."+table.table};
 state.error="";state.success="Tabela selecionada: "+table.schema+"."+table.table+". Apenas nomes e tipos de colunas são exibidos.";paint();
 }
@@ -168,7 +169,7 @@ const data=new FormData(form);
 const payload={engine:state.source,host:String(data.get("host")||"").trim(),port:Number(data.get("port")),
   database:String(data.get("database")||""),username:String(data.get("username")||""),
   password:String(data.get("password")||""),admin_token:String(data.get("admin_token")||"")};
-state.busy=true;state.error="";state.success="";
+state.busy=true;state.error="";state.success="";forgetConnection();
 const button=form.querySelector('[type="submit"]');
 if(button){button.disabled=true;button.textContent="Verificando TLS e permissões...";}
 try{
@@ -178,7 +179,8 @@ if(!response.ok)throw Error(typeof result.detail==="string"?result.detail:"Não 
 state.tables=result.tables||[];
 state.selected=state.tables.length?0:null;
 state.preview=state.tables.length?{columns:state.tables[0].columns.map(c=>c.name),rows:[],filename:state.tables[0].table}:{columns:[],rows:[]};
-state.from="database";state.step=3;state.success=result.message;paint();
+state.from="database";state.step=3;state.success=result.message;state.map=null;state.synced=null;state.connection={...payload};state.expiresAt=Date.now()+600000;
+state.expiryTimer=setTimeout(()=>{forgetConnection();if(state.active){state.success="Autorização temporária expirada. Teste a conexão novamente.";paint();}},600000);paint();
 }catch(e){
 state.error=e.message||"Falha ao testar conexão.";
 const password=form.querySelector("#dbPassword"),token=form.querySelector("#dbAdminToken");
@@ -201,10 +203,88 @@ const formData=new FormData();formData.append("file",file,file.name);
 const response=await fetch("/api/integrations/file-preview",{method:"POST",body:formData,cache:"no-store"});
 const result=await response.json();
 if(!response.ok)throw Error(typeof result.detail==="string"?result.detail:"Não foi possível abrir este arquivo.");
-state.preview=result;state.tables=[];state.selected=null;state.from="file";state.step=3;state.success=result.message;paint();
+state.preview=result;state.tables=[];state.selected=null;state.from="file";state.step=3;state.success=result.message;state.synced=null;forgetConnection();paint();
 }catch(e){state.error=e.message||"Erro de leitura.";paint();}
 finally{state.busy=false;}
 }
+
+function forgetConnection(){
+if(state.refreshTimer){clearInterval(state.refreshTimer);state.refreshTimer=null;}
+if(state.expiryTimer){clearTimeout(state.expiryTimer);state.expiryTimer=null;}
+state.autoRefresh=false;
+if(state.connection){state.connection.password="";state.connection.admin_token="";}
+state.connection=null;state.expiresAt=0;
+}
+function activeConnection(){
+if(!state.connection||Date.now()>=state.expiresAt){forgetConnection();return false;}
+return true;
+}
+function scheduleRefresh(){
+if(state.refreshTimer){clearInterval(state.refreshTimer);state.refreshTimer=null;}
+if(!state.autoRefresh||!activeConnection())return;
+state.refreshTimer=setInterval(()=>{if(!state.active||!activeConnection()){forgetConnection();return;}if(!state.syncing)syncDatabase(true);},300000);
+}
+function syncedPanel(){
+const x=state.synced;
+if(!x)return '<div class="integration-notice">Após escolher as colunas, clique em <strong>Sincronizar totais agora</strong> para visualizar os agregados desta tabela. Os demais módulos permanecem no modo demonstração.</div>';
+const months=x.months||[];
+const peak=Math.max(1,...months.map(m=>Math.abs(m.amount)));
+const points=months.map((m,i)=>[45+(i/Math.max(1,months.length-1))*570,198-165*m.amount/(peak*1.2)]);
+const path=points.map((p,i)=>(i?"L":"M")+p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" ");
+const svg=months.length?'<svg viewBox="0 0 650 240" style="width:100%;height:auto;max-height:260px" role="img" aria-label="Agregados mensais sincronizados">'+
+'<defs><linearGradient id="syncShade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#a38bff" stop-opacity=".4"/><stop offset="1" stop-color="#a38bff" stop-opacity="0"/></linearGradient></defs>'+
+'<path d="'+path+' L '+points[points.length-1][0]+' 200 L '+points[0][0]+' 200Z" fill="url(#syncShade)"/>'+
+'<path d="'+path+'" fill="none" stroke="#a38bff" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>'+
+points.map((p,i)=>'<circle cx="'+p[0]+'" cy="'+p[1]+'" r="5" fill="#47e8d6"><title>'+escape(months[i].month+": "+money(months[i].amount))+'</title></circle>').join("")+'</svg>':
+'<div class="integration-empty">Sem registros neste período.</div>';
+return '<section class="integration-synced"><div class="integration-synced-head"><div><span class="integration-status-pill">● CONSULTA SOMENTE LEITURA</span><h3>Resumo sincronizado</h3><p>Fonte: '+escape(x.engine)+" • "+escape(x.table)+'</p></div><button class="integration-outline" data-sync-export type="button">↓ Exportar CSV</button></div>'+
+'<div class="integration-map-result"><div><small>Valor agregado</small><strong>'+money(x.total_amount)+'</strong></div>'+
+'<div><small>Registros contabilizados</small><strong>'+new Intl.NumberFormat("pt-BR").format(x.row_count||0)+'</strong></div>'+
+'<div><small>Meses retornados</small><strong>'+months.length+'</strong></div></div>'+
+'<div class="integration-chart">'+svg+'</div>'+
+(x.categories?.length?'<h4>Categorias (top 8)</h4><div class="integration-tables">'+x.categories.map(g=>
+'<div class="integration-table-selector"><strong>'+escape(g.category)+'</strong><span>'+money(g.amount)+'</span></div>').join("")+'</div>':'')+
+'<p class="integration-help">Sincronizado em '+escape(new Date(x.synced_at).toLocaleString("pt-BR"))+'. Somente valores agregados desta tabela. Nada foi salvo no servidor.</p>'+
+'<div class="integration-actions"><button class="integration-outline" data-sync-auto type="button">'+(state.autoRefresh?'✓ Parar atualização automática':'◷ Atualizar a cada 5 minutos (nesta aba)')+'</button>'+
+'<button class="integration-danger" data-sync-disconnect type="button">Desconectar e esquecer credenciais</button></div>'+
+'<p class="integration-help">A autorização expira em 10 minutos e é apagada ao deixar a aba Integrações. A atualização automática funciona somente enquanto ela estiver aberta.</p></section>';
+}
+async function syncDatabase(automatic){
+if(state.syncing)return;
+if(!activeConnection()){state.error="Autorização expirada. Teste a conexão novamente.";paint();return;}
+const root=$("integrationPage"),date=root.querySelector("#mapDate")?.value||"",value=root.querySelector("#mapValue")?.value||"",
+category=root.querySelector("#mapCategory")?.value||null,table=state.tables[state.selected];
+if(!date||!value||!table){state.error="Escolha uma tabela, uma coluna de data e uma de valor.";paint();return;}
+state.map={date,value,category};
+const payload={...state.connection,schema_name:table.schema,table_name:table.table,date_column:date,
+value_column:value,category_column:category,window_days:90};
+state.syncing=true;state.error="";state.success="";
+const btn=root.querySelector("[data-sync]");if(btn){btn.disabled=true;btn.textContent="Sincronizando...";}
+try{
+const ctrl=new AbortController(),timeout=setTimeout(()=>ctrl.abort(),15000);let response;
+try{response=await fetch("/api/integrations/sync",{method:"POST",headers:{"Content-Type":"application/json"},
+body:JSON.stringify(payload),signal:ctrl.signal,cache:"no-store",credentials:"same-origin"});}
+finally{clearTimeout(timeout);}
+const result=await response.json();
+if(!response.ok)throw Error(typeof result.detail==="string"?result.detail:"Falha na sincronização.");
+state.synced=result;state.success="Totais atualizados com sucesso. Nenhum registro individual foi copiado.";
+}catch(e){
+state.error=e.name==="AbortError"?"A sincronização demorou demais.":(e.message||"Não foi possível sincronizar.");
+if(automatic){state.autoRefresh=false;if(state.refreshTimer){clearInterval(state.refreshTimer);state.refreshTimer=null;}}
+}finally{
+payload.password="";payload.admin_token="";
+state.syncing=false;
+if(state.active)paint();
+}
+}
+function exportSynced(){
+if(!state.synced)return;
+const rows=[["mes","valor","registros"],...(state.synced.months||[]).map(m=>[m.month,m.amount,m.records])];
+const blob=new Blob(["\ufeff"+rows.map(r=>r.join(";")).join("\r\n")],{type:"text/csv;charset=utf-8"});
+const uri=URL.createObjectURL(blob),a=document.createElement("a");
+a.href=uri;a.download="dados_agregados_sincronizados.csv";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(uri),1000);
+}
+
 function openIntegrations(){
 state.active=true;
 const integration=$("integrationPage");
@@ -226,6 +306,7 @@ paint();window.scrollTo({top:0,behavior:"smooth"});
 }
 function leaveIntegrations(){
 if(!state.active)return;
+forgetConnection();
 state.active=false;
 $("integrationPage").hidden=true;
 $("integrationsNav").classList.remove("active");$("integrationsNav").removeAttribute("aria-current");
@@ -250,7 +331,11 @@ else if(b.hasAttribute("data-back")){state.step=1;state.error="";state.success="
 else if(b.hasAttribute("data-demo"))demo();
 else if(b.hasAttribute("data-table"))chooseDbTable(Number(b.dataset.table));
 else if(b.hasAttribute("data-analyze"))analyze();
-else if(b.hasAttribute("data-reset")){state.step=1;state.preview=null;state.tables=[];state.selected=null;state.error="";state.success="";paint();}
+else if(b.hasAttribute("data-sync"))syncDatabase(false);
+else if(b.hasAttribute("data-sync-auto")){state.autoRefresh=!state.autoRefresh;scheduleRefresh();paint();}
+else if(b.hasAttribute("data-sync-export"))exportSynced();
+else if(b.hasAttribute("data-sync-disconnect")){forgetConnection();state.synced=null;state.success="Credenciais descartadas.";paint();}
+else if(b.hasAttribute("data-reset")){state.step=1;state.preview=null;state.tables=[];state.selected=null;state.synced=null;state.map=null;forgetConnection();state.error="";state.success="";paint();}
 });
 section.addEventListener("submit",e=>{
 if(e.target.id==="integrationDbForm"){e.preventDefault();testDb(e.target);}

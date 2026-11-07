@@ -1,15 +1,18 @@
 """FastAPI entrypoint for Vercel. Public demo: synthetic data only."""
 import json
+import secrets
+from urllib.parse import urlsplit
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request, HTTPException
 from fastapi import UploadFile, File
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response
 
 from analytics import dashboard
 from assistant_api import ChatRequest, answer_question
 from integrations import ConnectionTest, status as integration_status, test_connection, preview_file
+from sync_service import SyncRequest, sync_aggregates
 from features import ScenarioInput, calculate_scenario, create_powerbi_kit, export_data, get_insights, insights_for, DAX_EXAMPLES
 
 ROOT = Path(__file__).resolve().parent
@@ -71,7 +74,20 @@ def home():
         + integrations_js
         + '</script></body>',
     )
-    return HTMLResponse(page, headers={"Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v6"})
+    nonce = secrets.token_urlsafe(24)
+    page = page.replace('<script id="', '<script nonce="' + nonce + '" id="')
+    csp = (
+        "default-src 'none'; base-uri 'none'; object-src 'none'; "
+        "script-src 'nonce-" + nonce + "'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src https://fonts.gstatic.com; img-src 'self' data:; "
+        "connect-src 'self'; form-action 'self'; frame-ancestors 'none'; "
+        "upgrade-insecure-requests"
+    )
+    return HTMLResponse(page, headers={
+        "Cache-Control": "no-store", "X-Dashboard-Render": "fastapi-inline-v7",
+        "Content-Security-Policy": csp
+    })
 
 
 @app.get("/assets/app.css", include_in_schema=False)
@@ -168,3 +184,44 @@ async def integrations_preview(file: UploadFile = File(...)):
     """Read a small spreadsheet into RAM for a bounded, nonpersistent preview."""
     result = await preview_file(file)
     return JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/api/integrations/sync")
+def integrations_sync(payload: SyncRequest):
+    """Owner-only, read-only aggregation into transient response, no persistence."""
+    return JSONResponse(sync_aggregates(payload), headers={"Cache-Control": "no-store"})
+
+
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    """Defensive headers, restrictive cross-site browser policy and size guards."""
+    path = request.url.path
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+        origin = request.headers.get("origin", "")
+        if origin:
+            parsed = urlsplit(origin)
+            if parsed.netloc.lower() != request.headers.get("host", "").lower() or parsed.scheme not in {"http", "https"}:
+                return JSONResponse({"detail": "Origem da requisição não autorizada."}, status_code=403)
+        fetch_site = request.headers.get("sec-fetch-site", "")
+        if fetch_site in {"cross-site", "same-site"}:
+            return JSONResponse({"detail": "Requisição entre origens não autorizada."}, status_code=403)
+        if path.startswith("/api/integrations/") or path == "/api/chat":
+            content_length = request.headers.get("content-length")
+            limit = 2_000_000 if path.endswith("/file-preview") else 20_000
+            if content_length:
+                try:
+                    size = int(content_length)
+                except ValueError:
+                    return JSONResponse({"detail": "Tamanho da requisição inválido."}, status_code=400)
+                if size < 0 or size > limit:
+                    return JSONResponse({"detail": "Requisição excede o tamanho permitido."}, status_code=413)
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=()"
+    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    if path.startswith("/api/") or path == "/":
+        response.headers["Cache-Control"] = "no-store"
+    return response

@@ -13,21 +13,23 @@ class FrontendSmokeTests(unittest.TestCase):
     def test_home_includes_styles_scripts_and_data(self):
         response = home()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.headers.get("x-dashboard-render"), "fastapi-inline-v6")
+        self.assertEqual(response.headers.get("x-dashboard-render"), "fastapi-inline-v7")
         root = Path(__file__).resolve().parents[1]
         self.assertFalse((root / "public" / "index.html").exists(),
                          "Public index.html would shadow the FastAPI homepage on Vercel")
         self.assertTrue((root / "templates" / "index.html").exists())
         html = response.body.decode("utf-8")
         self.assertIn('<style id="dashboard-style">', html)
-        self.assertIn('<script id="dashboard-script">', html)
+        self.assertIn('id="dashboard-script"', html)
         self.assertIn('<style id="dashboard-upgrade-style">', html)
-        self.assertIn('<script id="dashboard-upgrade-script">', html)
+        self.assertIn('id="dashboard-upgrade-script"', html)
         self.assertIn('<style id="dashboard-studio-style">', html)
-        self.assertIn('<script id="dashboard-studio-script">', html)
+        self.assertIn('id="dashboard-studio-script"', html)
         self.assertIn('<style id="dashboard-integrations-style">', html)
-        self.assertIn('<script id="dashboard-integrations-script">', html)
+        self.assertIn('id="dashboard-integrations-script"', html)
         self.assertIn("integrationDbForm", html)
+        self.assertIn("syncDatabase", html)
+        self.assertIn("data-sync-auto", html)
         self.assertIn("integrationFileForm", html)
         self.assertIn("integrationsNav", html)
         self.assertIn("INTEGRATION_ALLOWED_HOSTS", html)
@@ -39,7 +41,7 @@ class FrontendSmokeTests(unittest.TestCase):
         self.assertIn('data-v2-tab', html)
         self.assertIn('data-scenario', html)
         self.assertIn('/api/powerbi/kit', html)
-        self.assertIn('<script id="dashboard-bootstrap" type="application/json">', html)
+        self.assertIn('id="dashboard-bootstrap" type="application/json"', html)
         self.assertIn('class="sidebar"', html)
         self.assertIn(".metric-grid", (Path(__file__).resolve().parents[1] / "templates" / "app.css").read_text())
         self.assertIn('const bundledData = embedded', html)
@@ -52,7 +54,7 @@ class FrontendSmokeTests(unittest.TestCase):
         self.assertNotIn('<script src="/assets/app.js" defer></script>', html)
 
         match = re.search(
-            r'<script id="dashboard-bootstrap" type="application/json">(.*?)</script>',
+            r'<script nonce="[^"]+" id="dashboard-bootstrap" type="application/json">(.*?)</script>',
             html, re.S,
         )
         self.assertIsNotNone(match)

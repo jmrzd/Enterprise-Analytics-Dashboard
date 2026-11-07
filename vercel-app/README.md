@@ -185,3 +185,41 @@ Para PostgreSQL, usa \`sslmode="verify-full"\`, que valida certificado e hostnam
 - Suporte a SQL Server, OAuth e um conector persistente multiempresa são evoluções futuras.
 
 **Endpoints:** \`GET /api/integrations/status\`, \`POST /api/integrations/test\` (autorizado), \`POST /api/integrations/file-preview\` (amostra de CSV/XLSX).
+
+
+## Sincronização segura de bancos — piloto
+
+A aba Integrações agora permite **sincronizar sob demanda totais mensais de uma tabela** de PostgreSQL ou MySQL. O resultado aparece **dentro de Integrações**, não substitui automaticamente os painéis fictícios de Vendas, Financeiro e RH.
+
+### Configuração do administrador na Vercel
+
+1. Abra Enterprise Analytics em Vercel → Settings → Environment Variables.
+2. Crie **INTEGRATION_ADMIN_TOKEN** como segredo protegido de pelo menos 24 caracteres. Gere localmente com Python secrets.token_urlsafe(32); não compartilhe no chat nem no GitHub.
+3. Crie **INTEGRATION_ALLOWED_HOSTS** com hostnames exatos e autorizados, separados por vírgula, por exemplo db1.suaempresa.com,db2.suaempresa.com (domínios meramente ilustrativos). Não inclua URLs, localhost ou endereços internos.
+4. Aplique em Production e execute um Redeploy. Sem ambos os valores, o teste e a sincronização seguem desativados.
+5. Crie um usuário SQL somente leitura e disponibilize uma conexão com certificado TLS válido, sem expor um banco interno apenas para usar o piloto.
+6. Em Integrações escolha PostgreSQL/MySQL, informe host, porta, banco, usuário, senha e autorização do proprietário. Teste, selecione uma tabela e mapeie data, valor numérico e opcionalmente categoria.
+7. Clique em **Sincronizar totais agora** para ler agregados mensais e até oito categorias. É possível ativar atualização a cada cinco minutos enquanto a aba estiver aberta.
+
+O servidor não salva senhas, registros individuais ou snapshots. As credenciais são mantidas apenas em memória na aba por até dez minutos, removidas ao mudar de módulo. Essa expiração do navegador **não revoga** o token do administrador, que deve ser rotacionado periodicamente.
+
+### O que ainda NÃO faz
+
+- Não oferece autenticação empresarial ou isolamento de dados por organização.
+- Não mantém conexão persistente, tarefas cron ou um banco central.
+- Não atualiza automaticamente os outros módulos com os dados da empresa.
+- Não envia métricas empresariais para o chatbot.
+
+Para transformar o piloto em um SaaS corporativo é preciso login seguro, controle de acesso por empresa, cofre de credenciais, armazenamento privado, auditoria e uma rotina de sincronização agendada. Não conecte dados confidenciais ou pessoais à vitrine pública antes dessas etapas.
+
+### Segurança adicionada
+
+- Content Security Policy para JavaScript com nonce por página.
+- Headers HSTS, X-Frame-Options DENY, nosniff, Referrer-Policy no-referrer e Permissions-Policy.
+- Limites de tamanho para requisições, bloqueio de requisições de origem cruzada e Cache-Control no-store.
+- TLS certificado e validado, host allowlist, bloqueio de IP privado/reservado e conexão de PostgreSQL fixada ao IP verificado.
+- SQL somente leitura, identificadores validados no catálogo do banco, parâmetros SQL seguros, timeout e respostas agregadas.
+
+Também recomendamos habilitar limitação de requisições e proteção contra abuso no Vercel Firewall/WAF, se disponível no plano. Consulte SECURITY.md.
+
+**API:** POST /api/integrations/sync aceita uma tabela, colunas validadas e um período de 30/90/180/365 dias, exigindo autorização administrativa e host aprovado. A interface utiliza 90 dias no piloto.

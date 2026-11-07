@@ -45,13 +45,15 @@ def status():
     return {
         "engines": ["postgres", "mysql"],
         "formats": ["csv", "xlsx"],
+        "sync_mode": "manual_session_only",
+        "persistent_sync_enabled": False,
         "live_test_enabled": bool(
-            os.getenv("INTEGRATION_ADMIN_TOKEN") and os.getenv("INTEGRATION_ALLOWED_HOSTS")
+            len(os.getenv("INTEGRATION_ADMIN_TOKEN", "")) >= 24 and _approved_hosts()
         ),
         "data_policy": (
             "As senhas e os arquivos não são armazenados pela aplicação. "
             "O teste SQL exige autorização e só aceita destinos aprovados pelo operador. "
-            "As conexões testadas não são salvas nem alimentam automaticamente o dashboard."
+            "A sincronização sob demanda retorna somente totais e não salva credenciais nem registros. Os demais módulos permanecem fictícios."
         ),
     }
 
@@ -88,6 +90,18 @@ def authorize_connection(req: ConnectionTest):
     return host
 
 
+def _pinned_public_ip(host, port):
+    """Resolve a checked address for libpq hostaddr; TLS uses original host."""
+    try:
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+        candidates = {ipaddress.ip_address(info[4][0]) for info in infos}
+    except (OSError, IndexError, ValueError):
+        raise HTTPException(403, detail="Destino de rede bloqueado.") from None
+    if not candidates or any(not item.is_global for item in candidates):
+        raise HTTPException(403, detail="Destino de rede bloqueado.") from None
+    return str(sorted(candidates, key=lambda a: (a.version, int(a)))[0])
+
+
 def _table_description(rows):
     tables = {}
     for schema, table, column, datatype in rows:
@@ -108,7 +122,7 @@ def test_connection(req: ConnectionTest):
         if req.engine == "postgres":
             import psycopg
             with psycopg.connect(
-                host=host, port=req.port, dbname=req.database, user=req.username,
+                host=host, hostaddr=_pinned_public_ip(host, req.port), port=req.port, dbname=req.database, user=req.username,
                 password=req.password.get_secret_value(), sslmode="verify-full",
                 connect_timeout=4, options="-c default_transaction_read_only=on -c statement_timeout=3500",
             ) as conn:
